@@ -21,7 +21,7 @@
 ### 本地启动
 
 ```bash
-go run ./cmd/mcp-server
+SERVER_PORT=11969 go run ./cmd/mcp-server
 ```
 
 ### Docker Compose 启动

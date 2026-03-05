@@ -41,9 +41,6 @@ func NewSuccess(id any, result any) RPCResponse {
 }
 
 func NewError(id any, code int, message string) RPCResponse {
-	if strings.TrimSpace(message) == "" {
-		message = ""
-	}
 	return RPCResponse{
 		JSONRPC: JSONRPCVersion,
 		ID:      id,

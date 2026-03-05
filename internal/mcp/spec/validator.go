@@ -15,10 +15,8 @@ func ValidateDefinitions(specs []ToolSpec) error {
 
 	names := make(map[string]string, len(specs))
 	for _, item := range specs {
-		if item.Raw == nil {
-			return fmt.Errorf("tool spec raw document missing: %s", item.Source)
-		}
-		if err := schema.Validate(meta, item.Raw); err != nil {
+		raw := SpecToMap(item)
+		if err := schema.Validate(meta, raw); err != nil {
 			return fmt.Errorf("invalid tool spec %s: %w", item.Source, err)
 		}
 
@@ -32,4 +30,18 @@ func ValidateDefinitions(specs []ToolSpec) error {
 		names[normalized] = item.Source
 	}
 	return nil
+}
+
+// SpecToMap builds a map representation of a ToolSpec from its structured fields.
+func SpecToMap(s ToolSpec) map[string]any {
+	m := map[string]any{
+		"type":        s.Type,
+		"name":        s.Name,
+		"description": s.Description,
+		"inputSchema": s.InputSchema,
+	}
+	if s.AfterCallHint != "" {
+		m["afterCallHint"] = s.AfterCallHint
+	}
+	return m
 }

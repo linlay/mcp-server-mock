@@ -16,8 +16,14 @@ const toolMetaSchemaJSON = `{
   "additionalProperties": false
 }`
 
+var metaSchema map[string]any
+
+func init() {
+	if err := json.Unmarshal([]byte(toolMetaSchemaJSON), &metaSchema); err != nil {
+		panic("invalid meta schema JSON: " + err.Error())
+	}
+}
+
 func MetaSchema() map[string]any {
-	out := map[string]any{}
-	_ = json.Unmarshal([]byte(toolMetaSchemaJSON), &out)
-	return out
+	return metaSchema
 }

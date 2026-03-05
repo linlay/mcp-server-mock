@@ -1,7 +1,6 @@
 package spec
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -65,28 +64,10 @@ func readToolSpec(path string) (ToolSpec, error) {
 		return ToolSpec{}, fmt.Errorf("empty yaml: %s", filepath.Base(path))
 	}
 
-	normalizedRaw, err := normalize(raw)
-	if err != nil {
-		return ToolSpec{}, fmt.Errorf("normalize yaml %s: %w", filepath.Base(path), err)
-	}
-
 	spec := ToolSpec{}
 	if err := yaml.Unmarshal(bytes, &spec); err != nil {
 		return ToolSpec{}, fmt.Errorf("decode spec %s: %w", filepath.Base(path), err)
 	}
-	spec.Raw = normalizedRaw
 	spec.Source = filepath.Base(path)
 	return spec, nil
-}
-
-func normalize(value any) (map[string]any, error) {
-	payload, err := json.Marshal(value)
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]any{}
-	if err := json.Unmarshal(payload, &out); err != nil {
-		return nil, err
-	}
-	return out, nil
 }

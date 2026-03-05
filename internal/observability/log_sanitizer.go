@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"mcp-server-mock/internal/jsonutil"
 )
 
 const (
@@ -16,6 +18,18 @@ const (
 var sensitiveKeywords = []string{
 	"password", "passwd", "pwd", "token", "secret", "apikey", "api-key", "api_key",
 	"authorization", "auth", "accesskey", "access-key", "access_key", "privatekey", "private_key",
+}
+
+var normalizedSensitiveKeywords []string
+
+func init() {
+	normalizedSensitiveKeywords = make([]string, len(sensitiveKeywords))
+	for i, kw := range sensitiveKeywords {
+		n := strings.ToLower(kw)
+		n = strings.ReplaceAll(n, "-", "")
+		n = strings.ReplaceAll(n, "_", "")
+		normalizedSensitiveKeywords[i] = n
+	}
 }
 
 // LogSanitizer masks sensitive fields and summarizes huge payloads before logging.
@@ -36,12 +50,11 @@ func (s *LogSanitizer) SummarizeJSON(value any) string {
 	return s.truncate(string(bytes))
 }
 
-func (s *LogSanitizer) SummarizeObject(value any) string {
-	return s.SummarizeJSON(value)
-}
-
 func (s *LogSanitizer) summarizeAndMask(value any) any {
-	normalized := normalizeValue(value)
+	normalized, err := jsonutil.NormalizeAny(value)
+	if err != nil {
+		return fmt.Sprint(value)
+	}
 	switch typed := normalized.(type) {
 	case nil:
 		return nil
@@ -118,42 +131,12 @@ func isSensitiveKey(fieldName string) bool {
 	normalized := strings.ToLower(fieldName)
 	normalized = strings.ReplaceAll(normalized, "-", "")
 	normalized = strings.ReplaceAll(normalized, "_", "")
-	for _, keyword := range sensitiveKeywords {
-		key := strings.ToLower(keyword)
-		key = strings.ReplaceAll(key, "-", "")
-		key = strings.ReplaceAll(key, "_", "")
-		if strings.Contains(normalized, key) {
+	for _, keyword := range normalizedSensitiveKeywords {
+		if strings.Contains(normalized, keyword) {
 			return true
 		}
 	}
 	return false
-}
-
-func normalizeValue(value any) any {
-	switch typed := value.(type) {
-	case nil:
-		return nil
-	case map[string]any:
-		return typed
-	case []any:
-		return typed
-	case string, bool,
-		int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64,
-		float32, float64,
-		json.Number:
-		return typed
-	default:
-		bytes, err := json.Marshal(value)
-		if err != nil {
-			return fmt.Sprint(value)
-		}
-		var decoded any
-		if err := json.Unmarshal(bytes, &decoded); err != nil {
-			return fmt.Sprint(value)
-		}
-		return decoded
-	}
 }
 
 func sortedKeys(object map[string]any) []string {

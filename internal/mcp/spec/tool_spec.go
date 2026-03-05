@@ -7,6 +7,5 @@ type ToolSpec struct {
 	AfterCallHint string         `yaml:"afterCallHint,omitempty"`
 	InputSchema   map[string]any `yaml:"inputSchema"`
 
-	Raw    map[string]any `yaml:"-"`
-	Source string         `yaml:"-"`
+	Source string `yaml:"-"`
 }

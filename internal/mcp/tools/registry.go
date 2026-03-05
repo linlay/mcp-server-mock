@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -99,7 +98,7 @@ func (r *Registry) ListTools() []map[string]any {
 	}
 	tools := make([]map[string]any, 0, len(r.ordered))
 	for _, item := range r.ordered {
-		tools = append(tools, deepCopy(item.Spec.Raw))
+		tools = append(tools, spec.SpecToMap(item.Spec))
 	}
 	return tools
 }
@@ -115,39 +114,62 @@ func (r *Registry) Find(toolName string) (ToolRegistration, bool) {
 	return item, true
 }
 
-func (r *Registry) Execute(ctx context.Context, toolName string, args map[string]any) (map[string]any, error) {
+// ExecuteErrorKind classifies the outcome of Execute.
+type ExecuteErrorKind int
+
+const (
+	ExecuteSuccess          ExecuteErrorKind = iota
+	ExecuteUnknownTool                       // tool not found
+	ExecuteValidationFailed                  // input schema validation failed
+	ExecuteHandlerError                      // handler returned an error
+)
+
+// ExecuteResult carries the outcome of a tools/call execution.
+type ExecuteResult struct {
+	ToolResult    ToolCallResult
+	Err           error
+	ErrKind       ExecuteErrorKind
+	CanonicalName string
+}
+
+// Execute performs Find → Validate → Call in a single call.
+// The transport layer should map ErrKind to the appropriate RPC response.
+func (r *Registry) Execute(ctx context.Context, toolName string, args map[string]any) ExecuteResult {
 	item, ok := r.Find(toolName)
 	if !ok {
-		return nil, fmt.Errorf("unknown tool: %s", strings.TrimSpace(toolName))
+		return ExecuteResult{
+			ToolResult:    ErrorResult("unknown tool: " + strings.TrimSpace(toolName)),
+			Err:           fmt.Errorf("unknown tool: %s", strings.TrimSpace(toolName)),
+			ErrKind:       ExecuteUnknownTool,
+			CanonicalName: "",
+		}
 	}
 	if args == nil {
 		args = map[string]any{}
 	}
 	if err := schema.Validate(item.CompiledSchema, args); err != nil {
-		return nil, fmt.Errorf("invalid params for %s: %w", item.Spec.Name, err)
+		return ExecuteResult{
+			Err:           fmt.Errorf("invalid params: %s", err.Error()),
+			ErrKind:       ExecuteValidationFailed,
+			CanonicalName: item.Spec.Name,
+		}
 	}
 	structured, err := item.Handler.Call(ctx, args)
 	if err != nil {
-		return nil, err
+		return ExecuteResult{
+			ToolResult:    ErrorResult(err.Error()),
+			Err:           err,
+			ErrKind:       ExecuteHandlerError,
+			CanonicalName: item.Spec.Name,
+		}
 	}
-	return SuccessResult(structured), nil
+	return ExecuteResult{
+		ToolResult:    SuccessResult(structured),
+		ErrKind:       ExecuteSuccess,
+		CanonicalName: item.Spec.Name,
+	}
 }
 
 func normalizeName(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
-}
-
-func deepCopy(source map[string]any) map[string]any {
-	if source == nil {
-		return map[string]any{}
-	}
-	payload, err := json.Marshal(source)
-	if err != nil {
-		return map[string]any{}
-	}
-	copy := map[string]any{}
-	if err := json.Unmarshal(payload, &copy); err != nil {
-		return map[string]any{}
-	}
-	return copy
 }

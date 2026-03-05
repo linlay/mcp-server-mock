@@ -9,20 +9,28 @@ import (
 	"time"
 
 	"mcp-server-mock/internal/mcp/protocol"
-	"mcp-server-mock/internal/mcp/schema"
 	"mcp-server-mock/internal/mcp/tools"
 	"mcp-server-mock/internal/observability"
 )
 
+const (
+	mcpProtocolVersion = "2025-06"
+	mcpServerName      = "mcp-server-mock"
+	mcpServerVersion   = "0.0.1"
+)
+
 type Controller struct {
 	registry     *tools.Registry
-	logger       *observability.Logger
+	logger       observability.MCPLogger
 	maxBodyBytes int64
 }
 
-func NewController(registry *tools.Registry, logger *observability.Logger, maxBodyBytes int64) *Controller {
+func NewController(registry *tools.Registry, logger observability.MCPLogger, maxBodyBytes int64) *Controller {
 	if maxBodyBytes <= 0 {
 		maxBodyBytes = 1024 * 1024
+	}
+	if logger == nil {
+		logger = observability.NopLogger{}
 	}
 	return &Controller{registry: registry, logger: logger, maxBodyBytes: maxBodyBytes}
 }
@@ -58,15 +66,11 @@ func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	stream := wantsStream(accept)
 	params := decodeParamsSummary(req.Params)
 	headers := singleValueHeaders(r.Header)
-	if c.logger != nil {
-		c.logger.LogMCPRequest(req.ID, req.Method, params, accept, stream, headers)
-	}
+	c.logger.LogMCPRequest(req.ID, req.Method, params, accept, stream, headers)
 
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			if c.logger != nil {
-				c.logger.LogMCPError(req.ID, req.Method, time.Since(start), "panic", fmt.Sprint(recovered))
-			}
+			c.logger.LogMCPError(req.ID, req.Method, time.Since(start), "panic", fmt.Sprint(recovered))
 			c.writeResponse(w, r, protocol.NewError(req.ID, protocol.ErrCodeInternal, "internal server error"), start, req.Method)
 		}
 	}()
@@ -79,10 +83,10 @@ func (c *Controller) dispatch(r *http.Request, req protocol.RPCRequest, start ti
 	switch req.Method {
 	case "initialize":
 		return protocol.NewSuccess(req.ID, map[string]any{
-			"protocolVersion": "2025-06",
+			"protocolVersion": mcpProtocolVersion,
 			"serverInfo": map[string]any{
-				"name":    "mcp-server-mock",
-				"version": "0.0.1",
+				"name":    mcpServerName,
+				"version": mcpServerVersion,
 			},
 			"capabilities": map[string]any{
 				"tools": map[string]any{
@@ -114,51 +118,29 @@ func (c *Controller) dispatchToolsCall(r *http.Request, req protocol.RPCRequest,
 		params.Arguments = map[string]any{}
 	}
 
-	item, ok := c.registry.Find(params.Name)
-	canonicalName := ""
-	if ok {
-		canonicalName = item.Spec.Name
-	}
-	if c.logger != nil {
-		c.logger.LogToolRequest(params.Name, canonicalName, params.Arguments)
-	}
+	result := c.registry.Execute(r.Context(), params.Name, params.Arguments)
+	c.logger.LogToolRequest(params.Name, result.CanonicalName, params.Arguments)
 
-	if !ok {
-		result := tools.ErrorResult("unknown tool: " + strings.TrimSpace(params.Name))
-		if c.logger != nil {
-			c.logger.LogToolError(params.Name, canonicalName, time.Since(start), result["error"].(string))
-		}
-		return protocol.NewSuccess(req.ID, result)
+	switch result.ErrKind {
+	case tools.ExecuteUnknownTool:
+		c.logger.LogToolError(params.Name, result.CanonicalName, time.Since(start), result.Err.Error())
+		return protocol.NewSuccess(req.ID, result.ToolResult)
+	case tools.ExecuteValidationFailed:
+		c.logger.LogToolError(params.Name, result.CanonicalName, time.Since(start), result.Err.Error())
+		return protocol.NewError(req.ID, protocol.ErrCodeInvalidParams, result.Err.Error())
+	case tools.ExecuteHandlerError:
+		c.logger.LogToolError(params.Name, result.CanonicalName, time.Since(start), result.Err.Error())
+		return protocol.NewSuccess(req.ID, result.ToolResult)
+	default:
+		c.logger.LogToolResponse(result.CanonicalName, result.ToolResult, time.Since(start))
+		return protocol.NewSuccess(req.ID, result.ToolResult)
 	}
-
-	if err := schema.Validate(item.CompiledSchema, params.Arguments); err != nil {
-		if c.logger != nil {
-			c.logger.LogToolError(params.Name, item.Spec.Name, time.Since(start), err.Error())
-		}
-		return protocol.NewError(req.ID, protocol.ErrCodeInvalidParams, "invalid params: "+err.Error())
-	}
-
-	structured, err := item.Handler.Call(r.Context(), params.Arguments)
-	if err != nil {
-		if c.logger != nil {
-			c.logger.LogToolError(params.Name, item.Spec.Name, time.Since(start), err.Error())
-		}
-		return protocol.NewSuccess(req.ID, tools.ErrorResult(err.Error()))
-	}
-
-	result := tools.SuccessResult(structured)
-	if c.logger != nil {
-		c.logger.LogToolResponse(item.Spec.Name, result, time.Since(start))
-	}
-	return protocol.NewSuccess(req.ID, result)
 }
 
 func (c *Controller) writeResponse(w http.ResponseWriter, r *http.Request, response protocol.RPCResponse, start time.Time, method string) {
 	encoded, err := json.Marshal(response)
 	if err != nil {
-		if c.logger != nil {
-			c.logger.LogMCPError(response.ID, method, time.Since(start), "marshal_error", err.Error())
-		}
+		c.logger.LogMCPError(response.ID, method, time.Since(start), "marshal_error", err.Error())
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
@@ -168,24 +150,17 @@ func (c *Controller) writeResponse(w http.ResponseWriter, r *http.Request, respo
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("data: " + string(encoded) + "\n\n"))
-		if c.logger != nil {
-			c.logger.LogMCPResponse(response.ID, method, responseToMap(response), time.Since(start), "text/event-stream")
-		}
+		c.logger.LogMCPResponse(response.ID, method, responseToMap(response), time.Since(start), "text/event-stream")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(encoded)
-	if c.logger != nil {
-		c.logger.LogMCPResponse(response.ID, method, responseToMap(response), time.Since(start), "application/json")
-	}
+	c.logger.LogMCPResponse(response.ID, method, responseToMap(response), time.Since(start), "application/json")
 }
 
 func wantsStream(acceptHeader string) bool {
-	if strings.TrimSpace(acceptHeader) == "" {
-		return false
-	}
 	return strings.Contains(strings.ToLower(acceptHeader), "text/event-stream")
 }
 

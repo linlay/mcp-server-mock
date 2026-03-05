@@ -17,6 +17,7 @@ type ObservabilityConfig struct {
 type Config struct {
 	ServerPort               int
 	ToolsSpecLocationPattern string
+	HTTPMaxBodyBytes         int64
 	Observability            ObservabilityConfig
 }
 
@@ -25,6 +26,7 @@ func Load() Config {
 	return Config{
 		ServerPort:               readIntEnv("SERVER_PORT", 8080),
 		ToolsSpecLocationPattern: readStringEnv("MCP_TOOLS_SPEC_LOCATION_PATTERN", "./tools/*.yml"),
+		HTTPMaxBodyBytes:         readInt64Env("MCP_HTTP_MAX_BODY_BYTES", 1024*1024),
 		Observability: ObservabilityConfig{
 			LogEnabled:        readBoolEnv("MCP_OBSERVABILITY_LOG_ENABLED", true),
 			LogMaxBodyLength:  readIntEnv("MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH", 2000),
@@ -59,6 +61,18 @@ func readBoolEnv(key string, fallback bool) bool {
 		return fallback
 	}
 	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+func readInt64Env(key string, fallback int64) int64 {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
 		return fallback
 	}

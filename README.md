@@ -1,20 +1,22 @@
 # mcp-server-mock
 
-用于联调的 Mock MCP Server（Go 版），使用 `net/http` 实现，提供标准 JSON-RPC 2.0 风格 `POST /mcp` 接口，支持：
+用于联调的 Mock MCP Server（Go 版），使用 `net/http` 提供单入口 `POST /mcp`。
 
-- `initialize`
-- `tools/list`
-- `tools/call`
-- 可选 SSE 返回（`Accept: text/event-stream`）
+## 核心特性
 
-默认端口：`8080`
+- YAML 单一事实来源：`tools/*.yml` 定义工具元数据与 `inputSchema`
+- 启动期校验：加载 YAML、校验 tool 定义、编译 JSON Schema（2020-12 语义子集）
+- 调用期校验：`tools/call` 先按 `inputSchema` 校验 `arguments`，再执行 Go handler
+- 一致性 fail-fast：YAML 与 Go handler 不一致时直接启动失败
+- 支持 `initialize` / `tools/list` / `tools/call`
+- 支持 SSE（`Accept: text/event-stream`）
 
 ## 快速启动
 
 ### 环境要求
 
 - Go `1.26+`
-- Docker + Docker Compose（用于容器部署）
+- Docker + Docker Compose（可选）
 
 ### 本地启动
 
@@ -29,33 +31,13 @@ cp .env.example .env
 docker compose up --build
 ```
 
-默认通过 `HOST_PORT` 对外暴露（默认 `11969`），容器内服务端口由 `SERVER_PORT` 控制（默认 `8080`）。
-`MCP_TOOLS_SPEC_LOCATION_PATTERN` 在 `docker-compose.yml` 内固定为 `./tools/*.yml`，不从 `.env` 读取。
-
-### 健康验证（initialize）
-
-```bash
-curl -sS -X POST "http://localhost:8080/mcp" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "health-1",
-    "method": "initialize",
-    "params": {
-      "protocolVersion": "2025-06",
-      "capabilities": {},
-      "clientInfo": {"name": "curl", "version": "0.0.1"}
-    }
-  }'
-```
-
-## curl 联调全流程
+## 请求示例
 
 ```bash
 BASE_URL="http://localhost:8080/mcp"
 ```
 
-### 1) initialize
+### initialize
 
 ```bash
 curl -sS -X POST "$BASE_URL" \
@@ -72,7 +54,7 @@ curl -sS -X POST "$BASE_URL" \
   }'
 ```
 
-### 2) tools/list
+### tools/list
 
 ```bash
 curl -sS -X POST "$BASE_URL" \
@@ -85,7 +67,7 @@ curl -sS -X POST "$BASE_URL" \
   }'
 ```
 
-### 3) tools/call - 天气工具
+### tools/call（成功）
 
 ```bash
 curl -sS -X POST "$BASE_URL" \
@@ -96,15 +78,12 @@ curl -sS -X POST "$BASE_URL" \
     "method": "tools/call",
     "params": {
       "name": "mock.weather.query",
-      "arguments": {
-        "city": "shanghai",
-        "date": "2026-02-14"
-      }
+      "arguments": {"city": "shanghai", "date": "2026-02-14"}
     }
   }'
 ```
 
-### 4) tools/call - 物流工具
+### tools/call（参数校验失败，-32602）
 
 ```bash
 curl -sS -X POST "$BASE_URL" \
@@ -114,50 +93,20 @@ curl -sS -X POST "$BASE_URL" \
     "id": "4",
     "method": "tools/call",
     "params": {
-      "name": "mock.logistics.status",
-      "arguments": {
-        "trackingNo": "SF1234567890",
-        "carrier": "SF Express"
-      }
+      "name": "mock.weather.query",
+      "arguments": {"city": "shanghai"}
     }
   }'
 ```
 
-### 5) tools/call - 敏感信息检测工具
+## 响应规则
 
-```bash
-curl -sS -X POST "$BASE_URL" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "5",
-    "method": "tools/call",
-    "params": {
-      "name": "mock.sensitive-data.detect",
-      "arguments": {
-        "text": "我的邮箱是 user@example.com，请联系我。"
-      }
-    }
-  }'
-```
+- method 不存在：`error.code = -32601`
+- 请求体非法：`error.code = -32700/-32600`
+- `tools/call` 参数不合法：`error.code = -32602`
+- tool 名不存在：返回 `result.isError=true`（保持兼容）
 
-### 6) SSE 调用
-
-```bash
-curl -sS -N -X POST "$BASE_URL" \
-  -H "Content-Type: application/json" \
-  -H "Accept: text/event-stream" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "7",
-    "method": "tools/list",
-    "params": {}
-  }'
-```
-
-## 响应字段说明
-
-典型成功结构：
+成功结构（tools/call）：
 
 ```json
 {
@@ -171,30 +120,28 @@ curl -sS -N -X POST "$BASE_URL" \
 }
 ```
 
-如 method 不存在，则返回：
+## 目录结构
 
-- `error.code = -32601`
-- `error.message = method not found: <method>`
-
-## 内置工具清单
-
-- `mock.weather.query`
-- `mock.logistics.status`
-- `mock.ops.runbook.generate`
-- `mock.sensitive-data.detect`
-- `mock.todo.tasks.list`
-- `mock.transport.schedule.query`
-
-工具定义来自 `tools/*.yml`，`tools/list` 按 YAML 原样字段输出（包含可选 `afterCallHint`）。
+```text
+cmd/mcp-server/main.go
+internal/mcp/protocol/
+internal/mcp/spec/
+internal/mcp/schema/
+internal/mcp/tools/
+internal/mcp/transport/
+internal/observability/
+tools/*.yml
+```
 
 ## 配置项（环境变量）
 
-- `HOST_PORT`（仅 `docker-compose` 使用，默认 `11969`）
-- `SERVER_PORT`（默认 `8080`，`docker-compose` 也通过 `.env` 读取）
-- `MCP_TOOLS_SPEC_LOCATION_PATTERN`（默认 `./tools/*.yml`；应用通用变量，`docker-compose` 中固定写死，不在 `.env.example`）
+- `SERVER_PORT`（默认 `8080`）
+- `MCP_TOOLS_SPEC_LOCATION_PATTERN`（默认 `./tools/*.yml`）
+- `MCP_HTTP_MAX_BODY_BYTES`（默认 `1048576`）
 - `MCP_OBSERVABILITY_LOG_ENABLED`（默认 `true`）
 - `MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH`（默认 `2000`）
 - `MCP_OBSERVABILITY_LOG_INCLUDE_HEADERS`（默认 `false`）
+- `HOST_PORT`（仅 docker-compose 使用，默认 `11969`）
 
 ## 测试
 
@@ -202,12 +149,8 @@ curl -sS -N -X POST "$BASE_URL" \
 go test ./...
 ```
 
-当前测试覆盖：
+覆盖范围：
 
-- initialize 成功响应
-- tools/list 返回 6 个 canonical 工具
-- tools/call 返回结构化内容
-- legacy 工具名返回 unknown tool
-- SSE 返回格式
-- observability 日志、日志关闭、脱敏、截断
-- 工具 YAML 加载异常时回退空列表
+- registry 启动期一致性（重复 name、schema 非法、handler/spec 漂移）
+- controller 请求分发、SSE、unknown tool、schema 校验失败
+- observability 日志开关、脱敏、截断、错误日志

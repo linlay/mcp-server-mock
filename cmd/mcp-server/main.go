@@ -7,7 +7,8 @@ import (
 	"net/http"
 
 	"mcp-server-mock/internal/config"
-	"mcp-server-mock/internal/mcp"
+	"mcp-server-mock/internal/mcp/tools"
+	"mcp-server-mock/internal/mcp/transport"
 	"mcp-server-mock/internal/observability"
 )
 
@@ -15,11 +16,13 @@ func main() {
 	cfg := config.Load()
 	std := log.Default()
 
-	repository := mcp.NewToolSpecRepository(cfg.ToolsSpecLocationPattern, std)
 	sanitizer := observability.NewLogSanitizer(cfg.Observability.LogMaxBodyLength)
 	obsLogger := observability.NewLogger(std, cfg.Observability, sanitizer)
-	toolService := mcp.NewToolService(repository, obsLogger)
-	controller := mcp.NewController(toolService, obsLogger)
+	registry, err := tools.NewRegistry(cfg.ToolsSpecLocationPattern, tools.BuiltinHandlers(), std)
+	if err != nil {
+		std.Fatalf("failed to initialize tool registry: %v", err)
+	}
+	controller := transport.NewController(registry, obsLogger, cfg.HTTPMaxBodyBytes)
 
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", controller)

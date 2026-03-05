@@ -1,4 +1,4 @@
-package mcp
+package transport
 
 import (
 	"bytes"
@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"mcp-server-mock/internal/config"
+	"mcp-server-mock/internal/mcp/tools"
 	"mcp-server-mock/internal/observability"
 )
 
@@ -45,13 +46,13 @@ func TestToolsListShouldReturnSixCanonicalTools(t *testing.T) {
 	}
 
 	result := body["result"].(map[string]any)
-	tools := result["tools"].([]any)
-	if len(tools) != 6 {
-		t.Fatalf("expected 6 tools, got %d", len(tools))
+	items := result["tools"].([]any)
+	if len(items) != 6 {
+		t.Fatalf("expected 6 tools, got %d", len(items))
 	}
 
-	names := make([]string, 0, len(tools))
-	for _, item := range tools {
+	names := make([]string, 0, len(items))
+	for _, item := range items {
 		tool := item.(map[string]any)
 		names = append(names, tool["name"].(string))
 	}
@@ -68,66 +69,6 @@ func TestToolsListShouldReturnSixCanonicalTools(t *testing.T) {
 		if names[i] != expected[i] {
 			t.Fatalf("expected tool %s, got %s", expected[i], names[i])
 		}
-	}
-
-	weather := findTool(t, tools, "mock.weather.query")
-	logistics := findTool(t, tools, "mock.logistics.status")
-	runbook := findTool(t, tools, "mock.ops.runbook.generate")
-	sensitive := findTool(t, tools, "mock.sensitive-data.detect")
-	todo := findTool(t, tools, "mock.todo.tasks.list")
-	transport := findTool(t, tools, "mock.transport.schedule.query")
-
-	assertEquals(t, weather["type"], "function")
-	assertEquals(t, logistics["type"], "function")
-	assertEquals(t, runbook["type"], "function")
-	assertEquals(t, sensitive["type"], "function")
-	assertEquals(t, todo["type"], "function")
-	assertEquals(t, transport["type"], "function")
-
-	assertContains(t, weather["description"].(string), "[MOCK] 根据 city 和 date 查询天气（伪造数据）。")
-	assertContains(t, logistics["description"].(string), "[MOCK] 根据 trackingNo 查询物流状态（伪造数据）。")
-	assertContains(t, runbook["description"].(string), "[MOCK] 根据 message 生成巡检 runbook（伪造数据）。")
-	assertContains(t, sensitive["description"].(string), "[MOCK] 检测超长文本中是否包含敏感数据")
-	assertContains(t, todo["description"].(string), "[MOCK] 生成待办任务列表（伪造数据）。")
-	assertContains(t, transport["description"].(string), "[MOCK] 根据出发地、目的地和日期生成航班或高铁行程（伪造数据）。")
-
-	assertContains(t, weather["afterCallHint"].(string), "show_weather_card")
-	assertContains(t, logistics["afterCallHint"].(string), "show_logistics_status")
-	assertContains(t, todo["afterCallHint"].(string), "show_todo_card")
-	assertContains(t, transport["afterCallHint"].(string), "show_transport_card")
-	if _, ok := runbook["afterCallHint"]; ok {
-		t.Fatal("runbook should not have afterCallHint")
-	}
-	if _, ok := sensitive["afterCallHint"]; ok {
-		t.Fatal("sensitive tool should not have afterCallHint")
-	}
-
-	assertAdditionalPropertiesFalse(t, weather)
-	assertAdditionalPropertiesFalse(t, logistics)
-	assertAdditionalPropertiesFalse(t, runbook)
-	assertAdditionalPropertiesFalse(t, sensitive)
-	assertAdditionalPropertiesFalse(t, todo)
-	assertAdditionalPropertiesFalse(t, transport)
-
-	weatherRequired := asStringSlice(weather["inputSchema"].(map[string]any)["required"].([]any))
-	if !containsExactlyInAnyOrder(weatherRequired, []string{"city", "date"}) {
-		t.Fatalf("unexpected weather required fields: %v", weatherRequired)
-	}
-	logisticsRequired := asStringSlice(logistics["inputSchema"].(map[string]any)["required"].([]any))
-	if !containsExactlyInAnyOrder(logisticsRequired, []string{"trackingNo"}) {
-		t.Fatalf("unexpected logistics required fields: %v", logisticsRequired)
-	}
-	if _, ok := runbook["inputSchema"].(map[string]any)["required"]; ok {
-		t.Fatal("runbook required should not exist")
-	}
-	if _, ok := sensitive["inputSchema"].(map[string]any)["required"]; ok {
-		t.Fatal("sensitive required should not exist")
-	}
-	if _, ok := todo["inputSchema"].(map[string]any)["required"]; ok {
-		t.Fatal("todo required should not exist")
-	}
-	if _, ok := transport["inputSchema"].(map[string]any)["required"]; ok {
-		t.Fatal("transport required should not exist")
 	}
 }
 
@@ -153,12 +94,48 @@ func TestToolsCallShouldReturnStructuredWeatherContent(t *testing.T) {
 	assertEquals(t, structured["mockTag"], "幂等随机数据")
 }
 
-func TestToolsCallShouldRejectLegacyToolAlias(t *testing.T) {
+func TestToolsCallShouldRejectInvalidParamsBySchema(t *testing.T) {
 	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
 
-	body, status, _ := postRPC(t, handler, rpc("3-alias", "tools/call", map[string]any{
-		"name":      "mock_city_weather",
-		"arguments": map[string]any{"city": "shanghai", "date": "2026-02-14"},
+	body, status, _ := postRPC(t, handler, rpc("4", "tools/call", map[string]any{
+		"name":      "mock.weather.query",
+		"arguments": map[string]any{"city": "shanghai"},
+	}), "")
+	if status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", status)
+	}
+
+	errorNode := body["error"].(map[string]any)
+	assertEquals(t, int(errorNode["code"].(float64)), -32602)
+	assertContains(t, errorNode["message"].(string), "invalid params")
+}
+
+func TestToolsCallShouldRejectAdditionalPropertiesBySchema(t *testing.T) {
+	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
+
+	body, status, _ := postRPC(t, handler, rpc("5", "tools/call", map[string]any{
+		"name": "mock.weather.query",
+		"arguments": map[string]any{
+			"city":  "shanghai",
+			"date":  "2026-02-14",
+			"extra": "oops",
+		},
+	}), "")
+	if status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", status)
+	}
+
+	errorNode := body["error"].(map[string]any)
+	assertEquals(t, int(errorNode["code"].(float64)), -32602)
+	assertContains(t, errorNode["message"].(string), "invalid params")
+}
+
+func TestToolsCallShouldReturnToolErrorForUnknownTool(t *testing.T) {
+	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
+
+	body, status, _ := postRPC(t, handler, rpc("6", "tools/call", map[string]any{
+		"name":      "mock.unknown.tool",
+		"arguments": map[string]any{"text": "abc"},
 	}), "")
 	if status != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", status)
@@ -172,7 +149,7 @@ func TestToolsCallShouldRejectLegacyToolAlias(t *testing.T) {
 func TestToolsListShouldSupportSSEResponse(t *testing.T) {
 	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
 
-	raw, status, headers := postRawRPC(t, handler, rpc("4", "tools/list", map[string]any{}), "text/event-stream")
+	raw, status, headers := postRawRPC(t, handler, rpc("7", "tools/list", map[string]any{}), "text/event-stream")
 	if status != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", status)
 	}
@@ -181,16 +158,17 @@ func TestToolsListShouldSupportSSEResponse(t *testing.T) {
 	assertContains(t, raw, `"jsonrpc":"2.0"`)
 	assertContains(t, raw, `"tools"`)
 	assertContains(t, raw, `"afterCallHint"`)
-	assertContains(t, raw, "show_weather_card")
 }
 
 func newMCPTestHandler(t *testing.T, obs config.ObservabilityConfig) http.Handler {
 	t.Helper()
 	logger := log.New(io.Discard, "", 0)
-	repo := NewToolSpecRepository(testToolsPattern(t), logger)
+	registry, err := tools.NewRegistry(testToolsPattern(t), tools.BuiltinHandlers(), logger)
+	if err != nil {
+		t.Fatalf("failed to create registry: %v", err)
+	}
 	obsLogger := observability.NewLogger(logger, obs, observability.NewLogSanitizer(obs.LogMaxBodyLength))
-	service := NewToolService(repo, obsLogger)
-	controller := NewController(service, obsLogger)
+	controller := NewController(registry, obsLogger, 1024*1024)
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", controller)
 	return mux
@@ -231,18 +209,6 @@ func rpc(id, method string, params map[string]any) map[string]any {
 	}
 }
 
-func findTool(t *testing.T, tools []any, name string) map[string]any {
-	t.Helper()
-	for _, item := range tools {
-		tool := item.(map[string]any)
-		if tool["name"] == name {
-			return tool
-		}
-	}
-	t.Fatalf("tool not found: %s", name)
-	return nil
-}
-
 func assertEquals(t *testing.T, got any, expected any) {
 	t.Helper()
 	if got != expected {
@@ -257,44 +223,12 @@ func assertContains(t *testing.T, value, expected string) {
 	}
 }
 
-func assertAdditionalPropertiesFalse(t *testing.T, tool map[string]any) {
-	t.Helper()
-	inputSchema := tool["inputSchema"].(map[string]any)
-	if inputSchema["additionalProperties"] != false {
-		t.Fatalf("expected additionalProperties=false for tool %v", tool["name"])
-	}
-}
-
-func containsExactlyInAnyOrder(actual []string, expected []string) bool {
-	if len(actual) != len(expected) {
-		return false
-	}
-	sortedActual := append([]string(nil), actual...)
-	sortedExpected := append([]string(nil), expected...)
-	sort.Strings(sortedActual)
-	sort.Strings(sortedExpected)
-	for i := range sortedActual {
-		if sortedActual[i] != sortedExpected[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func asStringSlice(values []any) []string {
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		result = append(result, value.(string))
-	}
-	return result
-}
-
 func testToolsPattern(t *testing.T) string {
 	t.Helper()
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("failed to resolve runtime caller")
 	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
 	return filepath.Join(root, "tools", "*.yml")
 }

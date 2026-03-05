@@ -12,7 +12,8 @@ import (
 	"testing"
 
 	"mcp-server-mock/internal/config"
-	"mcp-server-mock/internal/mcp"
+	"mcp-server-mock/internal/mcp/tools"
+	"mcp-server-mock/internal/mcp/transport"
 	"mcp-server-mock/internal/observability"
 )
 
@@ -101,11 +102,13 @@ func newLoggingTestHandler(t *testing.T, obs config.ObservabilityConfig) (http.H
 	t.Helper()
 	buffer := &bytes.Buffer{}
 	logger := log.New(buffer, "", 0)
-	repository := mcp.NewToolSpecRepository(testToolsPattern(t), logger)
+	registry, err := tools.NewRegistry(testToolsPattern(t), tools.BuiltinHandlers(), logger)
+	if err != nil {
+		t.Fatalf("failed to create registry: %v", err)
+	}
 	sanitizer := observability.NewLogSanitizer(obs.LogMaxBodyLength)
 	obsLogger := observability.NewLogger(logger, obs, sanitizer)
-	service := mcp.NewToolService(repository, obsLogger)
-	controller := mcp.NewController(service, obsLogger)
+	controller := transport.NewController(registry, obsLogger, 1024*1024)
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", controller)
 	return mux, buffer

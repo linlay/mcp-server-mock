@@ -23,7 +23,7 @@ type Config struct {
 // Load returns configuration from env with safe defaults.
 func Load() Config {
 	return Config{
-		ServerPort:               readIntEnv("SERVER_PORT", 19080),
+		ServerPort:               readIntEnv("SERVER_PORT", 8080),
 		ToolsSpecLocationPattern: readStringEnv("MCP_TOOLS_SPEC_LOCATION_PATTERN", "./tools/*.yml"),
 		Observability: ObservabilityConfig{
 			LogEnabled:        readBoolEnv("MCP_OBSERVABILITY_LOG_ENABLED", true),

@@ -1,0 +1,30 @@
+# macOS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Go build artifacts
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go coverage
+coverage.out
+cover.out
+*.coverprofile
+
+# Go workspace / vendoring (optional in this repo)
+go.work
+go.work.sum
+vendor/
+
+# Logs and env files
+*.log
+.env
+.env.*

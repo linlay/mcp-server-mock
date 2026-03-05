@@ -7,7 +7,7 @@
 - `tools/call`
 - 可选 SSE 返回（`Accept: text/event-stream`）
 
-默认端口：`19080`
+默认端口：`8080`
 
 ## 快速启动
 
@@ -31,7 +31,7 @@ docker compose up --build
 ### 健康验证（initialize）
 
 ```bash
-curl -sS -X POST "http://localhost:19080/mcp" \
+curl -sS -X POST "http://localhost:8080/mcp" \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -48,7 +48,7 @@ curl -sS -X POST "http://localhost:19080/mcp" \
 ## curl 联调全流程
 
 ```bash
-BASE_URL="http://localhost:19080/mcp"
+BASE_URL="http://localhost:8080/mcp"
 ```
 
 ### 1) initialize
@@ -185,7 +185,7 @@ curl -sS -N -X POST "$BASE_URL" \
 
 ## 配置项（环境变量）
 
-- `SERVER_PORT`（默认 `19080`）
+- `SERVER_PORT`（默认 `8080`，`docker-compose` 下仍为 `8080`，仅对外映射端口为 `11969`）
 - `MCP_TOOLS_SPEC_LOCATION_PATTERN`（默认 `./tools/*.yml`）
 - `MCP_OBSERVABILITY_LOG_ENABLED`（默认 `true`）
 - `MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH`（默认 `2000`）

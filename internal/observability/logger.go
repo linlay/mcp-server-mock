@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"mcp-server-mock-go/internal/config"
+	"mcp-server-mock/internal/config"
 )
 
 // Logger emits structured observability events matching the Java mock server format.

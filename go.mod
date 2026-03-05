@@ -1,4 +1,4 @@
-module mcp-server-mock-go
+module mcp-server-mock
 
 go 1.26
 

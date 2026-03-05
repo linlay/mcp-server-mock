@@ -1,4 +1,4 @@
-# mcp-server-mock-go
+# mcp-server-mock
 
 用于联调的 Mock MCP Server（Go 版），使用 `net/http` 实现，提供标准 JSON-RPC 2.0 风格 `POST /mcp` 接口，支持：
 
@@ -25,8 +25,12 @@ go run ./cmd/mcp-server
 ### Docker Compose 启动
 
 ```bash
+cp .env.example .env
 docker compose up --build
 ```
+
+默认通过 `HOST_PORT` 对外暴露（默认 `11969`），容器内服务端口由 `SERVER_PORT` 控制（默认 `8080`）。
+`MCP_TOOLS_SPEC_LOCATION_PATTERN` 在 `docker-compose.yml` 内固定为 `./tools/*.yml`，不从 `.env` 读取。
 
 ### 健康验证（initialize）
 
@@ -185,8 +189,9 @@ curl -sS -N -X POST "$BASE_URL" \
 
 ## 配置项（环境变量）
 
-- `SERVER_PORT`（默认 `8080`，`docker-compose` 下仍为 `8080`，仅对外映射端口为 `11969`）
-- `MCP_TOOLS_SPEC_LOCATION_PATTERN`（默认 `./tools/*.yml`）
+- `HOST_PORT`（仅 `docker-compose` 使用，默认 `11969`）
+- `SERVER_PORT`（默认 `8080`，`docker-compose` 也通过 `.env` 读取）
+- `MCP_TOOLS_SPEC_LOCATION_PATTERN`（默认 `./tools/*.yml`；应用通用变量，`docker-compose` 中固定写死，不在 `.env.example`）
 - `MCP_OBSERVABILITY_LOG_ENABLED`（默认 `true`）
 - `MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH`（默认 `2000`）
 - `MCP_OBSERVABILITY_LOG_INCLUDE_HEADERS`（默认 `false`）

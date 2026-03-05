@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"mcp-server-mock-go/internal/observability"
+	"mcp-server-mock/internal/observability"
 )
 
 const (

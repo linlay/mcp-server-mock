@@ -6,9 +6,9 @@ import (
 	"log"
 	"net/http"
 
-	"mcp-server-mock-go/internal/config"
-	"mcp-server-mock-go/internal/mcp"
-	"mcp-server-mock-go/internal/observability"
+	"mcp-server-mock/internal/config"
+	"mcp-server-mock/internal/mcp"
+	"mcp-server-mock/internal/observability"
 )
 
 func main() {

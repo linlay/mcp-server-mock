@@ -12,8 +12,8 @@ import (
 	"sort"
 	"testing"
 
-	"mcp-server-mock-go/internal/config"
-	"mcp-server-mock-go/internal/observability"
+	"mcp-server-mock/internal/config"
+	"mcp-server-mock/internal/observability"
 )
 
 func TestInitializeShouldReturnProtocolVersion(t *testing.T) {

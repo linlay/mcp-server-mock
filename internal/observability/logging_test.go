@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"mcp-server-mock-go/internal/config"
-	"mcp-server-mock-go/internal/mcp"
-	"mcp-server-mock-go/internal/observability"
+	"mcp-server-mock/internal/config"
+	"mcp-server-mock/internal/mcp"
+	"mcp-server-mock/internal/observability"
 )
 
 func TestShouldLogRequestAndResponseByDefault(t *testing.T) {

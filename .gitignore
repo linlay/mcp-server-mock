@@ -1,7 +1,13 @@
 # macOS / editor
 .DS_Store
+Thumbs.db
+Desktop.ini
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+*.tmp
 
 # Go build artifacts
 bin/
@@ -28,3 +34,4 @@ vendor/
 *.log
 .env
 .env.*
+!.env.example

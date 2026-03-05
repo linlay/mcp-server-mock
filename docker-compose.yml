@@ -5,12 +5,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "11969:8080"
+    env_file:
+      - .env
     environment:
-      SERVER_PORT: "8080"
       MCP_TOOLS_SPEC_LOCATION_PATTERN: "./tools/*.yml"
-      MCP_OBSERVABILITY_LOG_ENABLED: "true"
-      MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH: "2000"
-      MCP_OBSERVABILITY_LOG_INCLUDE_HEADERS: "false"
+    ports:
+      - "${HOST_PORT:-11969}:${SERVER_PORT:-8080}"
     restart: unless-stopped

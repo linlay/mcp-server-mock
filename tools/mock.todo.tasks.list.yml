@@ -1,0 +1,17 @@
+type: function
+name: mock.todo.tasks.list
+description: |
+  [MOCK] 生成待办任务列表（伪造数据）。
+  用于联调任务中心场景，验证优先级、状态与到期时间字段渲染。
+  返回幂等随机数据，不代表真实任务系统状态。
+afterCallHint: |
+  若需要 viewport 渲染，请在最终输出中使用 viewport 代码块。
+  type=html, key=show_todo_card。
+  若无需渲染，直接使用工具返回的 JSON 结果对象。
+inputSchema:
+  type: object
+  properties:
+    owner:
+      type: string
+      description: "任务归属人"
+  additionalProperties: false

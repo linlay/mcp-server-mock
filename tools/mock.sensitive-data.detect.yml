@@ -1,0 +1,23 @@
+type: function
+name: mock.sensitive-data.detect
+description: |
+  [MOCK] 检测超长文本中是否包含敏感数据，返回有/没有和简短说明。
+  用于联调文本审查场景，验证手机号、邮箱、身份证、密钥等规则匹配行为。
+  检测结果仅用于演示，不可替代正式合规系统。
+inputSchema:
+  type: object
+  properties:
+    text:
+      type: string
+      description: "待检测文本，推荐使用 text 字段"
+    content:
+      type: string
+    message:
+      type: string
+    query:
+      type: string
+    document:
+      type: string
+    input:
+      type: string
+  additionalProperties: false

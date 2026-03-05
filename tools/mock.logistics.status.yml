@@ -1,0 +1,22 @@
+type: function
+name: mock.logistics.status
+description: |
+  [MOCK] 根据 trackingNo 查询物流状态（伪造数据）。
+  用于联调物流场景中的状态流转、时间字段与节点信息展示。
+  返回幂等随机数据，不代表真实物流平台查询结果。
+afterCallHint: |
+  若需要 viewport 渲染，请在最终输出中使用 viewport 代码块。
+  type=html, key=show_logistics_status。
+  若无需渲染，直接使用工具返回的 JSON 结果对象。
+inputSchema:
+  type: object
+  properties:
+    trackingNo:
+      type: string
+      description: "物流单号，例如 SF123456789CN"
+    carrier:
+      type: string
+      description: "物流公司，可选，例如 SF Express"
+  required:
+    - trackingNo
+  additionalProperties: false

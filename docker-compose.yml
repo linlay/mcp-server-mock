@@ -1,0 +1,15 @@
+services:
+  mcp-server-mock-go:
+    container_name: mcp-server-mock-go
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "19080:19080"
+    environment:
+      SERVER_PORT: "19080"
+      MCP_TOOLS_SPEC_LOCATION_PATTERN: "./tools/*.yml"
+      MCP_OBSERVABILITY_LOG_ENABLED: "true"
+      MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH: "2000"
+      MCP_OBSERVABILITY_LOG_INCLUDE_HEADERS: "false"
+    restart: unless-stopped

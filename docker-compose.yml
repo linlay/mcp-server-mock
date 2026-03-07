@@ -10,3 +10,11 @@ services:
     ports:
       - "${HOST_PORT:-11969}:${SERVER_PORT:-8080}"
     restart: unless-stopped
+    networks:
+      zenmind-network:
+        aliases:
+          - mcp-server-mock
+
+networks:
+  zenmind-network:
+    external: true

@@ -21,13 +21,6 @@ RUN adduser -D -u 10001 appuser
 COPY --from=builder /out/mcp-server /app/mcp-server
 COPY tools /app/tools
 
-ENV SERVER_PORT=8080 \
-    MCP_HTTP_MAX_BODY_BYTES=1048576 \
-    MCP_TOOLS_SPEC_LOCATION_PATTERN=./tools/*.yml \
-    MCP_OBSERVABILITY_LOG_ENABLED=true \
-    MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH=2000 \
-    MCP_OBSERVABILITY_LOG_INCLUDE_HEADERS=false
-
 EXPOSE 8080
 
 USER appuser

@@ -7,8 +7,6 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
-    environment:
-      MCP_TOOLS_SPEC_LOCATION_PATTERN: "./tools/*.yml"
     ports:
       - "${HOST_PORT:-11969}:${SERVER_PORT:-8080}"
     restart: unless-stopped

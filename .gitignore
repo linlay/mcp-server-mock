@@ -12,6 +12,7 @@ Desktop.ini
 # Go build artifacts
 bin/
 dist/
+mcp-server
 *.exe
 *.exe~
 *.dll

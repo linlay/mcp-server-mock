@@ -13,8 +13,11 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
 	std := log.Default()
+	cfg, err := config.Load()
+	if err != nil {
+		std.Fatalf("failed to load config: %v", err)
+	}
 
 	sanitizer := observability.NewLogSanitizer(cfg.Observability.LogMaxBodyLength)
 	obsLogger := observability.NewLogger(std, cfg.Observability, sanitizer)

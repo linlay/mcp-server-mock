@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+.git
+.gitignore
+*.coverprofile
+*.log
+*.out
+bin
+coverage.out
+cover.out
+dist

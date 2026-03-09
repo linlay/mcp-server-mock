@@ -112,6 +112,12 @@
 - `tools/list`
 - `tools/call`
 
+`tools/list` 顶层扩展字段：
+
+- `toolAction: true`：action 工具
+- `toolType` + `viewportKey`：frontend 工具
+- 未声明扩展字段：backend 工具
+
 响应约定：
 
 - 使用 JSON-RPC 2.0 风格请求/响应

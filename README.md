@@ -133,6 +133,12 @@ curl -sS -X POST "http://localhost:11969/mcp" \
 - 请求返回 `-32602`：检查 `tools/call.arguments` 是否满足对应 tool 的 `inputSchema`
 - Docker 启动后无法访问：确认 `HOST_PORT` 和 `SERVER_PORT` 映射是否正确
 
+`tools/list` 扩展字段：
+
+- `toolAction: true` 表示该工具应被消费方视为 action 工具
+- `toolType + viewportKey` 成对出现时表示该工具应被消费方视为 frontend 工具
+- 未声明上述字段时，消费方可按 backend 工具处理
+
 日志说明：
 
 - 默认开启 observability 日志

@@ -6,6 +6,9 @@ type ToolSpec struct {
 	Description   string         `yaml:"description"`
 	AfterCallHint string         `yaml:"afterCallHint,omitempty"`
 	InputSchema   map[string]any `yaml:"inputSchema"`
+	ToolAction    bool           `yaml:"toolAction,omitempty"`
+	ToolType      string         `yaml:"toolType,omitempty"`
+	ViewportKey   string         `yaml:"viewportKey,omitempty"`
 
 	Source string `yaml:"-"`
 }

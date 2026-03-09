@@ -158,6 +158,8 @@ func TestToolsListShouldSupportSSEResponse(t *testing.T) {
 	assertContains(t, raw, `"jsonrpc":"2.0"`)
 	assertContains(t, raw, `"tools"`)
 	assertContains(t, raw, `"afterCallHint"`)
+	assertContains(t, raw, `"toolType"`)
+	assertContains(t, raw, `"viewportKey"`)
 }
 
 func newMCPTestHandler(t *testing.T, obs config.ObservabilityConfig) http.Handler {

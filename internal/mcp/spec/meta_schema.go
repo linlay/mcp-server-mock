@@ -11,7 +11,10 @@ const toolMetaSchemaJSON = `{
     "name": {"type": "string", "minLength": 1},
     "description": {"type": "string", "minLength": 1},
     "afterCallHint": {"type": "string"},
-    "inputSchema": {"type": "object"}
+    "inputSchema": {"type": "object"},
+    "toolAction": {"type": "boolean"},
+    "toolType": {"type": "string", "minLength": 1},
+    "viewportKey": {"type": "string", "minLength": 1}
   },
   "additionalProperties": false
 }`

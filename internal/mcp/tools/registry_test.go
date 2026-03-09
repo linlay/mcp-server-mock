@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"mcp-server-mock/internal/mcp/spec"
 )
 
 func TestRegistryShouldLoadAndListTools(t *testing.T) {
@@ -74,6 +76,74 @@ func TestRegistryShouldFailWhenHandlerHasNoSpec(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	if !strings.Contains(err.Error(), "handlers without tool spec") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSpecToMapShouldIncludeFrontendAndActionMetadata(t *testing.T) {
+	frontend := spec.SpecToMap(spec.ToolSpec{
+		Type:        "function",
+		Name:        "mock.frontend.dialog",
+		Description: "frontend",
+		InputSchema: map[string]any{"type": "object"},
+		ToolType:    "html",
+		ViewportKey: "confirm_dialog",
+	})
+	if got := frontend["toolType"]; got != "html" {
+		t.Fatalf("expected toolType html, got %#v", got)
+	}
+	if got := frontend["viewportKey"]; got != "confirm_dialog" {
+		t.Fatalf("expected viewportKey confirm_dialog, got %#v", got)
+	}
+
+	action := spec.SpecToMap(spec.ToolSpec{
+		Type:        "function",
+		Name:        "mock.action.launch",
+		Description: "action",
+		InputSchema: map[string]any{"type": "object"},
+		ToolAction:  true,
+	})
+	if got := action["toolAction"]; got != true {
+		t.Fatalf("expected toolAction true, got %#v", got)
+	}
+}
+
+func TestRegistryShouldFailWhenToolModeMetadataIsInvalid(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "a.yml"), `type: function
+name: mock.weather.query
+description: test
+toolType: html
+inputSchema:
+  type: object
+`)
+
+	_, err := NewRegistry(filePattern(dir), []ToolHandler{stubHandler{name: "mock.weather.query"}}, log.New(os.Stdout, "", 0))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "toolType and viewportKey must be declared together") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRegistryShouldFailWhenActionToolAlsoDeclaresFrontendFields(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "a.yml"), `type: function
+name: mock.weather.query
+description: test
+toolAction: true
+toolType: html
+viewportKey: confirm_dialog
+inputSchema:
+  type: object
+`)
+
+	_, err := NewRegistry(filePattern(dir), []ToolHandler{stubHandler{name: "mock.weather.query"}}, log.New(os.Stdout, "", 0))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "toolAction=true cannot be combined") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

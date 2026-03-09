@@ -19,6 +19,9 @@ func ValidateDefinitions(specs []ToolSpec) error {
 		if err := schema.Validate(meta, raw); err != nil {
 			return fmt.Errorf("invalid tool spec %s: %w", item.Source, err)
 		}
+		if err := validateToolMode(item); err != nil {
+			return fmt.Errorf("invalid tool spec %s: %w", item.Source, err)
+		}
 
 		normalized := strings.ToLower(strings.TrimSpace(item.Name))
 		if normalized == "" {
@@ -28,6 +31,19 @@ func ValidateDefinitions(specs []ToolSpec) error {
 			return fmt.Errorf("duplicate tool name: %s in %s and %s", item.Name, first, item.Source)
 		}
 		names[normalized] = item.Source
+	}
+	return nil
+}
+
+func validateToolMode(item ToolSpec) error {
+	hasToolType := strings.TrimSpace(item.ToolType) != ""
+	hasViewportKey := strings.TrimSpace(item.ViewportKey) != ""
+
+	if item.ToolAction && (hasToolType || hasViewportKey) {
+		return fmt.Errorf("toolAction=true cannot be combined with toolType or viewportKey")
+	}
+	if hasToolType != hasViewportKey {
+		return fmt.Errorf("toolType and viewportKey must be declared together")
 	}
 	return nil
 }
@@ -42,6 +58,15 @@ func SpecToMap(s ToolSpec) map[string]any {
 	}
 	if s.AfterCallHint != "" {
 		m["afterCallHint"] = s.AfterCallHint
+	}
+	if s.ToolAction {
+		m["toolAction"] = true
+	}
+	if strings.TrimSpace(s.ToolType) != "" {
+		m["toolType"] = strings.TrimSpace(s.ToolType)
+	}
+	if strings.TrimSpace(s.ViewportKey) != "" {
+		m["viewportKey"] = strings.TrimSpace(s.ViewportKey)
 	}
 	return m
 }

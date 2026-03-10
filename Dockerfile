@@ -20,6 +20,7 @@ RUN adduser -D -u 10001 appuser
 
 COPY --from=builder /out/mcp-server /app/mcp-server
 COPY tools /app/tools
+COPY viewports /app/viewports
 
 EXPOSE 8080
 

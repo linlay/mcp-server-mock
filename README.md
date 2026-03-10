@@ -70,6 +70,7 @@ BASE_URL="http://localhost:11969/mcp"
 - `CONFIG_PATH`：可选的外部结构化配置文件路径
 - `SERVER_PORT`：服务监听端口
 - `MCP_TOOLS_SPEC_LOCATION_PATTERN`：tool spec 文件匹配路径
+- `MCP_VIEWPORTS_DIR`：viewport 文件目录
 - `MCP_HTTP_MAX_BODY_BYTES`：HTTP 请求体大小上限
 - `MCP_OBSERVABILITY_LOG_ENABLED`：是否开启日志
 - `MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH`：日志中请求体截断长度
@@ -130,6 +131,7 @@ curl -sS -X POST "http://localhost:11969/mcp" \
 
 - 启动失败并提示配置错误：检查 `.env` 中数值/布尔格式是否正确，或 `CONFIG_PATH` 指向的 yml 是否存在非法字段
 - 启动失败并提示 registry 错误：检查 `tools/*.yml` 与 `BuiltinHandlers()` 是否一一对应
+- 启动失败并提示 `read viewports dir`：检查镜像/运行目录中是否包含 `viewports/`，或通过 `MCP_VIEWPORTS_DIR` 指向正确目录
 - 请求返回 `-32602`：检查 `tools/call.arguments` 是否满足对应 tool 的 `inputSchema`
 - Docker 启动后无法访问：确认 `HOST_PORT` 和 `SERVER_PORT` 映射是否正确
 

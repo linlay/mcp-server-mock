@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"mcp-server-mock/internal/config"
 	"mcp-server-mock/internal/mcp/tools"
 	"mcp-server-mock/internal/mcp/transport"
 	"mcp-server-mock/internal/observability"
+	"mcp-server-mock/internal/viewport"
 )
 
 func main() {
@@ -25,10 +27,24 @@ func main() {
 	if err != nil {
 		std.Fatalf("failed to initialize tool registry: %v", err)
 	}
+	viewportRegistry, err := viewport.NewRegistry(
+		cfg.ViewportsDir,
+		time.Duration(cfg.ViewportRefreshIntervalMs)*time.Millisecond,
+		registry.ViewportBindings(),
+		std,
+	)
+	if err != nil {
+		std.Fatalf("failed to initialize viewport registry: %v", err)
+	}
+	defer viewportRegistry.Close()
 	controller := transport.NewController(registry, obsLogger, cfg.HTTPMaxBodyBytes)
+	viewportController := transport.NewViewportController(viewportRegistry)
+	viewportListController := transport.NewViewportListController(viewportRegistry)
 
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", controller)
+	mux.Handle("/api/ap/viewport", viewportController)
+	mux.Handle("/api/ap/viewports", viewportListController)
 
 	addr := fmt.Sprintf(":%d", cfg.ServerPort)
 	server := &http.Server{

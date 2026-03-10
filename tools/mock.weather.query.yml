@@ -8,6 +8,8 @@ afterCallHint: |
   若需要 viewport 渲染，请在最终输出中使用 viewport 代码块。
   type=html, key=show_weather_card。
   若无需渲染，直接使用工具返回的 JSON 结果对象。
+toolType: html
+viewportKey: show_weather_card
 inputSchema:
   type: object
   properties:

@@ -20,6 +20,10 @@ func TestRegistryShouldLoadAndListTools(t *testing.T) {
 	if len(listed) != 6 {
 		t.Fatalf("expected 6 tools, got %d", len(listed))
 	}
+	bindings := r.ViewportBindings()
+	if got := bindings["show_todo_card"]; len(got) != 1 || got[0] != "mock.todo.tasks.list" {
+		t.Fatalf("unexpected viewport bindings: %#v", bindings)
+	}
 }
 
 func TestRegistryShouldFailWhenInputSchemaInvalid(t *testing.T) {

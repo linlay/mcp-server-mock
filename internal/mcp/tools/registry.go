@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v5"
@@ -112,6 +113,25 @@ func (r *Registry) Find(toolName string) (ToolRegistration, bool) {
 		return ToolRegistration{}, false
 	}
 	return item, true
+}
+
+func (r *Registry) ViewportBindings() map[string][]string {
+	if r == nil || len(r.ordered) == 0 {
+		return map[string][]string{}
+	}
+	bindings := make(map[string][]string)
+	for _, item := range r.ordered {
+		viewportKey := strings.TrimSpace(item.Spec.ViewportKey)
+		if viewportKey == "" {
+			continue
+		}
+		bindings[viewportKey] = append(bindings[viewportKey], item.Spec.Name)
+	}
+	for viewportKey, toolNames := range bindings {
+		sort.Strings(toolNames)
+		bindings[viewportKey] = toolNames
+	}
+	return bindings
 }
 
 // ExecuteErrorKind classifies the outcome of Execute.

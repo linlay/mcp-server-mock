@@ -19,6 +19,12 @@ func TestLoadShouldUseEmbeddedDefaults(t *testing.T) {
 	if cfg.ToolsSpecLocationPattern != "./tools/*.yml" {
 		t.Fatalf("unexpected tools pattern: %s", cfg.ToolsSpecLocationPattern)
 	}
+	if cfg.ViewportsDir != "./viewports" {
+		t.Fatalf("unexpected viewports dir: %s", cfg.ViewportsDir)
+	}
+	if cfg.ViewportRefreshIntervalMs != 30000 {
+		t.Fatalf("unexpected viewport refresh interval: %d", cfg.ViewportRefreshIntervalMs)
+	}
 	if cfg.HTTPMaxBodyBytes != 1048576 {
 		t.Fatalf("unexpected http max body bytes: %d", cfg.HTTPMaxBodyBytes)
 	}
@@ -37,6 +43,8 @@ func TestLoadShouldOverlayExternalYAMLThenEnv(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.dev.yml")
 	writeConfigFile(t, configPath, `serverPort: 9090
+viewportsDir: ./custom-viewports
+viewportRefreshIntervalMs: 12345
 httpMaxBodyBytes: 2048
 observability:
   logEnabled: false
@@ -45,6 +53,7 @@ observability:
 
 	t.Setenv("CONFIG_PATH", configPath)
 	t.Setenv("SERVER_PORT", "12000")
+	t.Setenv("MCP_VIEWPORTS_DIR", "./env-viewports")
 	t.Setenv("MCP_OBSERVABILITY_LOG_INCLUDE_HEADERS", "true")
 
 	cfg, err := Load()
@@ -57,6 +66,12 @@ observability:
 	}
 	if cfg.HTTPMaxBodyBytes != 2048 {
 		t.Fatalf("expected yaml http max body bytes 2048, got %d", cfg.HTTPMaxBodyBytes)
+	}
+	if cfg.ViewportsDir != "./env-viewports" {
+		t.Fatalf("expected env viewport dir override, got %s", cfg.ViewportsDir)
+	}
+	if cfg.ViewportRefreshIntervalMs != 12345 {
+		t.Fatalf("expected yaml viewport refresh interval 12345, got %d", cfg.ViewportRefreshIntervalMs)
 	}
 	if cfg.Observability.LogEnabled {
 		t.Fatal("expected yaml to disable logging")

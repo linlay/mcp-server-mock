@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>天气卡片</title>
+  <style>
+    body { margin: 0; font-family: "PingFang SC", "Segoe UI", sans-serif; background: #eef5ff; color: #14324f; }
+    .card { padding: 16px; border-radius: 14px; background: #ffffff; border: 1px solid #cfe0ff; }
+    .title { font-size: 18px; font-weight: 700; }
+    .meta { margin-top: 6px; color: #5d7695; font-size: 13px; }
+    .temp { margin-top: 12px; font-size: 34px; font-weight: 800; color: #0c63ff; }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <div class="title" id="city">天气加载中</div>
+    <div class="meta" id="date">--</div>
+    <div class="temp" id="temperature">--</div>
+  </section>
+</body>
+</html>

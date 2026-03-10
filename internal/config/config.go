@@ -23,18 +23,22 @@ type ObservabilityConfig struct {
 
 // Config holds process-level server configuration.
 type Config struct {
-	ServerPort               int                 `yaml:"serverPort"`
-	ToolsSpecLocationPattern string              `yaml:"toolsSpecLocationPattern"`
-	HTTPMaxBodyBytes         int64               `yaml:"httpMaxBodyBytes"`
-	Observability            ObservabilityConfig `yaml:"observability"`
+	ServerPort                int                 `yaml:"serverPort"`
+	ToolsSpecLocationPattern  string              `yaml:"toolsSpecLocationPattern"`
+	ViewportsDir              string              `yaml:"viewportsDir"`
+	ViewportRefreshIntervalMs int                 `yaml:"viewportRefreshIntervalMs"`
+	HTTPMaxBodyBytes          int64               `yaml:"httpMaxBodyBytes"`
+	Observability             ObservabilityConfig `yaml:"observability"`
 }
 
 // Load returns configuration from code defaults, embedded YAML, optional external YAML, and env.
 func Load() (Config, error) {
 	cfg := Config{
-		ServerPort:               8080,
-		ToolsSpecLocationPattern: "./tools/*.yml",
-		HTTPMaxBodyBytes:         1024 * 1024,
+		ServerPort:                8080,
+		ToolsSpecLocationPattern:  "./tools/*.yml",
+		ViewportsDir:              "./viewports",
+		ViewportRefreshIntervalMs: 30000,
+		HTTPMaxBodyBytes:          1024 * 1024,
 		Observability: ObservabilityConfig{
 			LogEnabled:        true,
 			LogMaxBodyLength:  2000,
@@ -73,6 +77,8 @@ func mergeYAML(source string, raw []byte, target *Config) error {
 func applyEnvOverrides(cfg *Config) {
 	cfg.ServerPort = readIntEnv("SERVER_PORT", cfg.ServerPort)
 	cfg.ToolsSpecLocationPattern = readStringEnv("MCP_TOOLS_SPEC_LOCATION_PATTERN", cfg.ToolsSpecLocationPattern)
+	cfg.ViewportsDir = readStringEnv("MCP_VIEWPORTS_DIR", cfg.ViewportsDir)
+	cfg.ViewportRefreshIntervalMs = readIntEnv("MCP_VIEWPORT_REFRESH_INTERVAL_MS", cfg.ViewportRefreshIntervalMs)
 	cfg.HTTPMaxBodyBytes = readInt64Env("MCP_HTTP_MAX_BODY_BYTES", cfg.HTTPMaxBodyBytes)
 	cfg.Observability.LogEnabled = readBoolEnv("MCP_OBSERVABILITY_LOG_ENABLED", cfg.Observability.LogEnabled)
 	cfg.Observability.LogMaxBodyLength = readIntEnv("MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH", cfg.Observability.LogMaxBodyLength)

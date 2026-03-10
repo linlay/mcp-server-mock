@@ -1,5 +1,7 @@
 serverPort: 8080
 toolsSpecLocationPattern: ./tools/*.yml
+viewportsDir: ./viewports
+viewportRefreshIntervalMs: 30000
 httpMaxBodyBytes: 1048576
 observability:
   logEnabled: true

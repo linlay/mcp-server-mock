@@ -52,9 +52,16 @@ func TestToolsListShouldReturnSixCanonicalTools(t *testing.T) {
 	}
 
 	names := make([]string, 0, len(items))
+	labels := map[string]string{}
 	for _, item := range items {
 		tool := item.(map[string]any)
-		names = append(names, tool["name"].(string))
+		name := tool["name"].(string)
+		names = append(names, name)
+		label, ok := tool["label"].(string)
+		if !ok || label == "" {
+			t.Fatalf("expected non-empty label for %s, got %#v", name, tool["label"])
+		}
+		labels[name] = label
 	}
 	sort.Strings(names)
 	expected := []string{
@@ -68,6 +75,19 @@ func TestToolsListShouldReturnSixCanonicalTools(t *testing.T) {
 	for i := range expected {
 		if names[i] != expected[i] {
 			t.Fatalf("expected tool %s, got %s", expected[i], names[i])
+		}
+	}
+	expectedLabels := map[string]string{
+		"mock.logistics.status":         "物流状态查询",
+		"mock.ops.runbook.generate":     "巡检 Runbook 生成",
+		"mock.sensitive-data.detect":    "敏感信息检测",
+		"mock.todo.tasks.list":          "待办任务列表",
+		"mock.transport.schedule.query": "出行班次查询",
+		"mock.weather.query":            "天气查询",
+	}
+	for name, want := range expectedLabels {
+		if got := labels[name]; got != want {
+			t.Fatalf("expected label %s for %s, got %s", want, name, got)
 		}
 	}
 }
@@ -157,6 +177,7 @@ func TestToolsListShouldSupportSSEResponse(t *testing.T) {
 	assertContains(t, raw, "data:")
 	assertContains(t, raw, `"jsonrpc":"2.0"`)
 	assertContains(t, raw, `"tools"`)
+	assertContains(t, raw, `"label"`)
 	assertContains(t, raw, `"afterCallHint"`)
 	assertContains(t, raw, `"toolType"`)
 	assertContains(t, raw, `"viewportKey"`)

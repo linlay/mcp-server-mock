@@ -1,5 +1,6 @@
 type: function
 name: mock.transport.schedule.query
+label: 出行班次查询
 description: |
   [MOCK] 根据出发地、目的地和日期生成航班或高铁行程（伪造数据）。
   用于联调出行场景中的班次号、时间计算、状态和登机口/站台展示。

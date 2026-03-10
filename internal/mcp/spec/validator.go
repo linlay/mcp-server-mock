@@ -15,8 +15,13 @@ func ValidateDefinitions(specs []ToolSpec) error {
 
 	names := make(map[string]string, len(specs))
 	for _, item := range specs {
-		raw := SpecToMap(item)
-		if err := schema.Validate(meta, raw); err != nil {
+		if item.Raw == nil {
+			return fmt.Errorf("tool spec raw document missing: %s", item.Source)
+		}
+		if err := schema.Validate(meta, item.Raw); err != nil {
+			return fmt.Errorf("invalid tool spec %s: %w", item.Source, err)
+		}
+		if err := validateLabel(item); err != nil {
 			return fmt.Errorf("invalid tool spec %s: %w", item.Source, err)
 		}
 		if err := validateToolMode(item); err != nil {
@@ -31,6 +36,16 @@ func ValidateDefinitions(specs []ToolSpec) error {
 			return fmt.Errorf("duplicate tool name: %s in %s and %s", item.Name, first, item.Source)
 		}
 		names[normalized] = item.Source
+	}
+	return nil
+}
+
+func validateLabel(item ToolSpec) error {
+	if _, ok := item.Raw["label"]; !ok {
+		return nil
+	}
+	if strings.TrimSpace(item.Label) == "" {
+		return fmt.Errorf("label must be a non-empty string")
 	}
 	return nil
 }
@@ -55,6 +70,9 @@ func SpecToMap(s ToolSpec) map[string]any {
 		"name":        s.Name,
 		"description": s.Description,
 		"inputSchema": s.InputSchema,
+	}
+	if strings.TrimSpace(s.Label) != "" {
+		m["label"] = strings.TrimSpace(s.Label)
 	}
 	if s.AfterCallHint != "" {
 		m["afterCallHint"] = s.AfterCallHint

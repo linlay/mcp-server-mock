@@ -68,6 +68,7 @@ func readToolSpec(path string) (ToolSpec, error) {
 	if err := yaml.Unmarshal(bytes, &spec); err != nil {
 		return ToolSpec{}, fmt.Errorf("decode spec %s: %w", filepath.Base(path), err)
 	}
+	spec.Raw = raw
 	spec.Source = filepath.Base(path)
 	return spec, nil
 }

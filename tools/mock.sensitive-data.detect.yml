@@ -1,5 +1,6 @@
 type: function
 name: mock.sensitive-data.detect
+label: 敏感信息检测
 description: |
   [MOCK] 检测超长文本中是否包含敏感数据，返回有/没有和简短说明。
   用于联调文本审查场景，验证手机号、邮箱、身份证、密钥等规则匹配行为。

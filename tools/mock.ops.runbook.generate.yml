@@ -1,5 +1,6 @@
 type: function
 name: mock.ops.runbook.generate
+label: 巡检 Runbook 生成
 description: |
   [MOCK] 根据 message 生成巡检 runbook（伪造数据）。
   用于联调运维场景中的风险级别判断、步骤编排与命令建议生成。

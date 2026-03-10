@@ -10,6 +10,8 @@
 - 在启动阶段校验 `tools/*.yml` 与 Go handler 一致性
 - 在调用阶段按 tool schema 校验参数
 
+详细协议契约见 `docs/mcp-protocol-definition.md`。
+
 ## 快速开始
 
 环境要求：
@@ -137,9 +139,12 @@ curl -sS -X POST "http://localhost:11969/mcp" \
 
 `tools/list` 扩展字段：
 
+- `label` 表示工具的人类可读名称，适合直接给前端显示中文名
 - `toolAction: true` 表示该工具应被消费方视为 action 工具
 - `toolType + viewportKey` 成对出现时表示该工具应被消费方视为 frontend 工具
 - 未声明上述字段时，消费方可按 backend 工具处理
+- MCP 客户端应优先显示 `label`，回退到 `name`
+- 发起 `tools/call` 时始终使用 `name`，不要使用 `label`
 
 日志说明：
 

@@ -1,5 +1,6 @@
 type: function
 name: mock.logistics.status
+label: 物流状态查询
 description: |
   [MOCK] 根据 trackingNo 查询物流状态（伪造数据）。
   用于联调物流场景中的状态流转、时间字段与节点信息展示。

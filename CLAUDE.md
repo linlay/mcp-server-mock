@@ -87,6 +87,7 @@
 - `spec.ToolSpec`
   - `Type`
   - `Name`
+  - `Label`
   - `Description`
   - `AfterCallHint`
   - `InputSchema`
@@ -114,6 +115,7 @@
 
 `tools/list` 顶层扩展字段：
 
+- `label`：工具的人类可读名称，可用于中文展示
 - `toolAction: true`：action 工具
 - `toolType` + `viewportKey`：frontend 工具
 - 未声明扩展字段：backend 工具
@@ -145,7 +147,8 @@
   - `.env`：本地简单键值与可选 `CONFIG_PATH`
   - 环境变量：最终覆盖层
 - Docker 镜像不应包含 `.env` 等本地私密文件
-- README 只写使用、部署、排查；设计事实统一维护在本文件
+- README 只写使用、部署、排查；详细协议契约维护在 `docs/mcp-protocol-definition.md`
+- 其余设计事实统一维护在本文件
 
 ## 开发流程
 

@@ -20,6 +20,17 @@ func TestRegistryShouldLoadAndListTools(t *testing.T) {
 	if len(listed) != 6 {
 		t.Fatalf("expected 6 tools, got %d", len(listed))
 	}
+	byName := map[string]map[string]any{}
+	for _, item := range listed {
+		name, _ := item["name"].(string)
+		byName[name] = item
+	}
+	if got := byName["mock.weather.query"]["label"]; got != "天气查询" {
+		t.Fatalf("expected weather label, got %#v", got)
+	}
+	if got := byName["mock.sensitive-data.detect"]["label"]; got != "敏感信息检测" {
+		t.Fatalf("expected sensitive-data label, got %#v", got)
+	}
 	bindings := r.ViewportBindings()
 	if got := bindings["show_todo_card"]; len(got) != 1 || got[0] != "mock.todo.tasks.list" {
 		t.Fatalf("unexpected viewport bindings: %#v", bindings)
@@ -84,15 +95,19 @@ func TestRegistryShouldFailWhenHandlerHasNoSpec(t *testing.T) {
 	}
 }
 
-func TestSpecToMapShouldIncludeFrontendAndActionMetadata(t *testing.T) {
+func TestSpecToMapShouldIncludeExtendedMetadata(t *testing.T) {
 	frontend := spec.SpecToMap(spec.ToolSpec{
 		Type:        "function",
 		Name:        "mock.frontend.dialog",
+		Label:       "确认对话框",
 		Description: "frontend",
 		InputSchema: map[string]any{"type": "object"},
 		ToolType:    "html",
 		ViewportKey: "confirm_dialog",
 	})
+	if got := frontend["label"]; got != "确认对话框" {
+		t.Fatalf("expected label 确认对话框, got %#v", got)
+	}
 	if got := frontend["toolType"]; got != "html" {
 		t.Fatalf("expected toolType html, got %#v", got)
 	}
@@ -109,6 +124,52 @@ func TestSpecToMapShouldIncludeFrontendAndActionMetadata(t *testing.T) {
 	})
 	if got := action["toolAction"]; got != true {
 		t.Fatalf("expected toolAction true, got %#v", got)
+	}
+}
+
+func TestRegistryShouldFailWhenLabelIsBlank(t *testing.T) {
+	cases := []struct {
+		name       string
+		content    string
+		wantErrMsg string
+	}{
+		{
+			name: "empty-string",
+			content: `type: function
+name: mock.weather.query
+label: ""
+description: test
+inputSchema:
+  type: object
+`,
+			wantErrMsg: "$.label length must be >= 1",
+		},
+		{
+			name: "whitespace-only",
+			content: `type: function
+name: mock.weather.query
+label: "   "
+description: test
+inputSchema:
+  type: object
+`,
+			wantErrMsg: "label must be a non-empty string",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, "a.yml"), tc.content)
+
+			_, err := NewRegistry(filePattern(dir), []ToolHandler{stubHandler{name: "mock.weather.query"}}, log.New(os.Stdout, "", 0))
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrMsg) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 
@@ -167,6 +228,7 @@ func (s stubHandler) Call(_ context.Context, _ map[string]any) (map[string]any, 
 func validTool(name string) string {
 	return "type: function\n" +
 		"name: " + name + "\n" +
+		"label: 示例工具\n" +
 		"description: test\n" +
 		"inputSchema:\n" +
 		"  type: object\n" +

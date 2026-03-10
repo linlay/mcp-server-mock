@@ -1,5 +1,6 @@
 type: function
 name: mock.weather.query
+label: 天气查询
 description: |
   [MOCK] 根据 city 和 date 查询天气（伪造数据）。
   用于联调时验证参数解析、结构化输出与多语言城市映射行为。

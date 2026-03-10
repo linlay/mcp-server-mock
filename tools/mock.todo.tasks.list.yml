@@ -1,5 +1,6 @@
 type: function
 name: mock.todo.tasks.list
+label: 待办任务列表
 description: |
   [MOCK] 生成待办任务列表（伪造数据）。
   用于联调任务中心场景，验证优先级、状态与到期时间字段渲染。

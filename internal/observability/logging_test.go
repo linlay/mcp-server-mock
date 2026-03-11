@@ -15,6 +15,7 @@ import (
 	"mcp-server-mock/internal/mcp/tools"
 	"mcp-server-mock/internal/mcp/transport"
 	"mcp-server-mock/internal/observability"
+	"mcp-server-mock/internal/viewport"
 )
 
 func TestShouldLogRequestAndResponseByDefault(t *testing.T) {
@@ -106,9 +107,14 @@ func newLoggingTestHandler(t *testing.T, obs config.ObservabilityConfig) (http.H
 	if err != nil {
 		t.Fatalf("failed to create registry: %v", err)
 	}
+	viewportRegistry, err := viewport.NewRegistry(testViewportsDir(t), 0, registry.ViewportBindings(), logger)
+	if err != nil {
+		t.Fatalf("failed to create viewport registry: %v", err)
+	}
+	t.Cleanup(viewportRegistry.Close)
 	sanitizer := observability.NewLogSanitizer(obs.LogMaxBodyLength)
 	obsLogger := observability.NewLogger(logger, obs, sanitizer)
-	controller := transport.NewController(registry, obsLogger, 1024*1024)
+	controller := transport.NewController(registry, viewportRegistry, obsLogger, 1024*1024)
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", controller)
 	return mux, buffer
@@ -149,6 +155,16 @@ func testToolsPattern(t *testing.T) string {
 	}
 	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
 	return filepath.Join(root, "tools", "*.yml")
+}
+
+func testViewportsDir(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("failed to resolve runtime caller")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+	return filepath.Join(root, "viewports")
 }
 
 func assertContains(t *testing.T, value, expected string) {

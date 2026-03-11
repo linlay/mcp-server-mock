@@ -32,8 +32,8 @@ func TestRegistryShouldLoadAndListTools(t *testing.T) {
 		t.Fatalf("expected sensitive-data label, got %#v", got)
 	}
 	bindings := r.ViewportBindings()
-	if got := bindings["show_todo_card"]; len(got) != 1 || got[0] != "mock.todo.tasks.list" {
-		t.Fatalf("unexpected viewport bindings: %#v", bindings)
+	if len(bindings) != 0 {
+		t.Fatalf("expected no viewport bindings for default mock tools, got %#v", bindings)
 	}
 }
 
@@ -124,6 +124,40 @@ func TestSpecToMapShouldIncludeExtendedMetadata(t *testing.T) {
 	})
 	if got := action["toolAction"]; got != true {
 		t.Fatalf("expected toolAction true, got %#v", got)
+	}
+}
+
+func TestRegistryShouldReturnExplicitViewportMetadataOnly(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "frontend.yml"), `type: function
+name: mock.frontend.dialog
+label: 确认对话框
+description: frontend
+toolType: html
+viewportKey: confirm_dialog
+inputSchema:
+  type: object
+`)
+
+	r, err := NewRegistry(filePattern(dir), []ToolHandler{stubHandler{name: "mock.frontend.dialog"}}, log.New(os.Stdout, "", 0))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	listed := r.ListTools()
+	if len(listed) != 1 {
+		t.Fatalf("expected 1 tool, got %d", len(listed))
+	}
+	if got := listed[0]["toolType"]; got != "html" {
+		t.Fatalf("expected toolType html, got %#v", got)
+	}
+	if got := listed[0]["viewportKey"]; got != "confirm_dialog" {
+		t.Fatalf("expected viewportKey confirm_dialog, got %#v", got)
+	}
+
+	bindings := r.ViewportBindings()
+	if got := bindings["confirm_dialog"]; len(got) != 1 || got[0] != "mock.frontend.dialog" {
+		t.Fatalf("unexpected viewport bindings: %#v", bindings)
 	}
 }
 

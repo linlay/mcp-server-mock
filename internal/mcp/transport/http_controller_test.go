@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	"mcp-server-mock/internal/config"
 	"mcp-server-mock/internal/mcp/tools"
 	"mcp-server-mock/internal/observability"
+	"mcp-server-mock/internal/viewport"
 )
 
 func TestInitializeShouldReturnProtocolVersion(t *testing.T) {
@@ -60,6 +62,12 @@ func TestToolsListShouldReturnSixCanonicalTools(t *testing.T) {
 		label, ok := tool["label"].(string)
 		if !ok || label == "" {
 			t.Fatalf("expected non-empty label for %s, got %#v", name, tool["label"])
+		}
+		if _, ok := tool["toolType"]; ok {
+			t.Fatalf("expected toolType to be absent for %s, got %#v", name, tool["toolType"])
+		}
+		if _, ok := tool["viewportKey"]; ok {
+			t.Fatalf("expected viewportKey to be absent for %s, got %#v", name, tool["viewportKey"])
 		}
 		labels[name] = label
 	}
@@ -179,19 +187,129 @@ func TestToolsListShouldSupportSSEResponse(t *testing.T) {
 	assertContains(t, raw, `"tools"`)
 	assertContains(t, raw, `"label"`)
 	assertContains(t, raw, `"afterCallHint"`)
-	assertContains(t, raw, `"toolType"`)
-	assertContains(t, raw, `"viewportKey"`)
+	assertNotContains(t, raw, `"toolType"`)
+	assertNotContains(t, raw, `"viewportKey"`)
+}
+
+func TestViewportsListShouldReturnViewportSummaries(t *testing.T) {
+	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
+
+	body, status, _ := postRPC(t, handler, rpc("8", "viewports/list", map[string]any{}), "")
+	if status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", status)
+	}
+
+	result := body["result"].(map[string]any)
+	items := result["viewports"].([]any)
+	if len(items) != 4 {
+		t.Fatalf("expected 4 viewports, got %d", len(items))
+	}
+	first := items[0].(map[string]any)
+	if _, ok := first["viewportKey"].(string); !ok {
+		t.Fatalf("expected viewportKey in summary, got %#v", first)
+	}
+	if _, ok := first["viewportType"].(string); !ok {
+		t.Fatalf("expected viewportType in summary, got %#v", first)
+	}
+	toolNames, ok := first["toolNames"].([]any)
+	if !ok {
+		t.Fatalf("expected toolNames in summary, got %#v", first)
+	}
+	if len(toolNames) != 0 {
+		t.Fatalf("expected empty toolNames for default mock tools, got %#v", toolNames)
+	}
+}
+
+func TestViewportsGetShouldReturnHTMLViewport(t *testing.T) {
+	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
+
+	body, status, _ := postRPC(t, handler, rpc("9", "viewports/get", map[string]any{
+		"viewportKey": "show_weather_card",
+	}), "")
+	if status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", status)
+	}
+
+	result := body["result"].(map[string]any)
+	assertEquals(t, result["viewportKey"], "show_weather_card")
+	assertEquals(t, result["viewportType"], "html")
+	if _, ok := result["payload"].(string); !ok {
+		t.Fatalf("expected string payload, got %#v", result["payload"])
+	}
+}
+
+func TestViewportsGetShouldReturnQLCViewport(t *testing.T) {
+	handler := newMCPTestHandlerWithViewportDir(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000}, createTempViewportDir(t, map[string]string{
+		"show_weather_card.html": "<div>weather</div>",
+		"todo_form.qlc":          `{"schema":{"type":"object"}}`,
+	}))
+
+	body, status, _ := postRPC(t, handler, rpc("10", "viewports/get", map[string]any{
+		"viewportKey": "todo_form",
+	}), "")
+	if status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", status)
+	}
+
+	result := body["result"].(map[string]any)
+	assertEquals(t, result["viewportKey"], "todo_form")
+	assertEquals(t, result["viewportType"], "qlc")
+	payload, ok := result["payload"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected object payload, got %#v", result["payload"])
+	}
+	if _, ok := payload["schema"].(map[string]any); !ok {
+		t.Fatalf("expected qlc schema payload, got %#v", payload)
+	}
+}
+
+func TestViewportsGetShouldRejectMissingViewportKey(t *testing.T) {
+	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
+
+	body, status, _ := postRPC(t, handler, rpc("11", "viewports/get", map[string]any{}), "")
+	if status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", status)
+	}
+
+	errorNode := body["error"].(map[string]any)
+	assertEquals(t, int(errorNode["code"].(float64)), -32602)
+	assertContains(t, errorNode["message"].(string), "viewportKey is required")
+}
+
+func TestViewportsGetShouldRejectUnknownViewportKey(t *testing.T) {
+	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
+
+	body, status, _ := postRPC(t, handler, rpc("12", "viewports/get", map[string]any{
+		"viewportKey": "missing",
+	}), "")
+	if status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", status)
+	}
+
+	errorNode := body["error"].(map[string]any)
+	assertEquals(t, int(errorNode["code"].(float64)), -32602)
+	assertContains(t, errorNode["message"].(string), "viewport not found: missing")
 }
 
 func newMCPTestHandler(t *testing.T, obs config.ObservabilityConfig) http.Handler {
+	t.Helper()
+	return newMCPTestHandlerWithViewportDir(t, obs, testViewportsDir(t))
+}
+
+func newMCPTestHandlerWithViewportDir(t *testing.T, obs config.ObservabilityConfig, viewportsDir string) http.Handler {
 	t.Helper()
 	logger := log.New(io.Discard, "", 0)
 	registry, err := tools.NewRegistry(testToolsPattern(t), tools.BuiltinHandlers(), logger)
 	if err != nil {
 		t.Fatalf("failed to create registry: %v", err)
 	}
+	viewportRegistry, err := viewport.NewRegistry(viewportsDir, 0, registry.ViewportBindings(), logger)
+	if err != nil {
+		t.Fatalf("failed to create viewport registry: %v", err)
+	}
+	t.Cleanup(viewportRegistry.Close)
 	obsLogger := observability.NewLogger(logger, obs, observability.NewLogSanitizer(obs.LogMaxBodyLength))
-	controller := NewController(registry, obsLogger, 1024*1024)
+	controller := NewController(registry, viewportRegistry, obsLogger, 1024*1024)
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", controller)
 	return mux
@@ -246,6 +364,13 @@ func assertContains(t *testing.T, value, expected string) {
 	}
 }
 
+func assertNotContains(t *testing.T, value, unexpected string) {
+	t.Helper()
+	if bytes.Contains([]byte(value), []byte(unexpected)) {
+		t.Fatalf("expected %q to not contain %q", value, unexpected)
+	}
+}
+
 func testToolsPattern(t *testing.T) string {
 	t.Helper()
 	_, filename, _, ok := runtime.Caller(0)
@@ -254,4 +379,26 @@ func testToolsPattern(t *testing.T) string {
 	}
 	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
 	return filepath.Join(root, "tools", "*.yml")
+}
+
+func testViewportsDir(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("failed to resolve runtime caller")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
+	return filepath.Join(root, "viewports")
+}
+
+func createTempViewportDir(t *testing.T, files map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for name, content := range files {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("write viewport file %s: %v", name, err)
+		}
+	}
+	return dir
 }

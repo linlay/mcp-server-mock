@@ -33,6 +33,10 @@ type ToolsCallParams struct {
 	Arguments map[string]any `json:"arguments"`
 }
 
+type ViewportGetParams struct {
+	ViewportKey string `json:"viewportKey"`
+}
+
 func NewSuccess(id any, result any) RPCResponse {
 	if result == nil {
 		result = map[string]any{}

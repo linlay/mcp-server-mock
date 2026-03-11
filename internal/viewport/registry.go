@@ -113,10 +113,14 @@ func (r *Registry) ListSummaries() []Summary {
 	summaries := make([]Summary, 0, len(keys))
 	for _, key := range keys {
 		entry := r.entries[key]
+		toolNames := append([]string(nil), r.toolNamesByViewport[key]...)
+		if toolNames == nil {
+			toolNames = []string{}
+		}
 		summaries = append(summaries, Summary{
 			ViewportKey:  entry.ViewportKey,
 			ViewportType: entry.ViewportType,
-			ToolNames:    append([]string(nil), r.toolNamesByViewport[key]...),
+			ToolNames:    toolNames,
 		})
 	}
 	return summaries

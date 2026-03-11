@@ -11,6 +11,7 @@ import (
 	"mcp-server-mock/internal/mcp/protocol"
 	"mcp-server-mock/internal/mcp/tools"
 	"mcp-server-mock/internal/observability"
+	"mcp-server-mock/internal/viewport"
 )
 
 const (
@@ -20,19 +21,25 @@ const (
 )
 
 type Controller struct {
-	registry     *tools.Registry
-	logger       observability.MCPLogger
-	maxBodyBytes int64
+	registry         *tools.Registry
+	viewportRegistry *viewport.Registry
+	logger           observability.MCPLogger
+	maxBodyBytes     int64
 }
 
-func NewController(registry *tools.Registry, logger observability.MCPLogger, maxBodyBytes int64) *Controller {
+func NewController(registry *tools.Registry, viewportRegistry *viewport.Registry, logger observability.MCPLogger, maxBodyBytes int64) *Controller {
 	if maxBodyBytes <= 0 {
 		maxBodyBytes = 1024 * 1024
 	}
 	if logger == nil {
 		logger = observability.NopLogger{}
 	}
-	return &Controller{registry: registry, logger: logger, maxBodyBytes: maxBodyBytes}
+	return &Controller{
+		registry:         registry,
+		viewportRegistry: viewportRegistry,
+		logger:           logger,
+		maxBodyBytes:     maxBodyBytes,
+	}
 }
 
 func (c *Controller) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -101,6 +108,10 @@ func (c *Controller) dispatch(r *http.Request, req protocol.RPCRequest, start ti
 		return protocol.NewSuccess(req.ID, map[string]any{"tools": c.registry.ListTools()})
 	case "tools/call":
 		return c.dispatchToolsCall(r, req, start)
+	case "viewports/list":
+		return c.dispatchViewportsList(req)
+	case "viewports/get":
+		return c.dispatchViewportsGet(req)
 	default:
 		return protocol.NewError(req.ID, protocol.ErrCodeMethodNotFound, "method not found: "+req.Method)
 	}
@@ -135,6 +146,38 @@ func (c *Controller) dispatchToolsCall(r *http.Request, req protocol.RPCRequest,
 		c.logger.LogToolResponse(result.CanonicalName, result.ToolResult, time.Since(start))
 		return protocol.NewSuccess(req.ID, result.ToolResult)
 	}
+}
+
+func (c *Controller) dispatchViewportsList(req protocol.RPCRequest) protocol.RPCResponse {
+	if c.viewportRegistry == nil {
+		return protocol.NewSuccess(req.ID, map[string]any{"viewports": []viewport.Summary{}})
+	}
+	return protocol.NewSuccess(req.ID, map[string]any{"viewports": c.viewportRegistry.ListSummaries()})
+}
+
+func (c *Controller) dispatchViewportsGet(req protocol.RPCRequest) protocol.RPCResponse {
+	params := protocol.ViewportGetParams{}
+	if err := protocol.DecodeParams(req.Params, &params); err != nil {
+		return protocol.NewError(req.ID, protocol.ErrCodeInvalidParams, "invalid params: expected object")
+	}
+	params.ViewportKey = strings.TrimSpace(params.ViewportKey)
+	if params.ViewportKey == "" {
+		return protocol.NewError(req.ID, protocol.ErrCodeInvalidParams, "invalid params: viewportKey is required")
+	}
+	if c.viewportRegistry == nil {
+		return protocol.NewError(req.ID, protocol.ErrCodeInvalidParams, "invalid params: viewport not found: "+params.ViewportKey)
+	}
+
+	entry, ok := c.viewportRegistry.Find(params.ViewportKey)
+	if !ok {
+		return protocol.NewError(req.ID, protocol.ErrCodeInvalidParams, "invalid params: viewport not found: "+params.ViewportKey)
+	}
+
+	return protocol.NewSuccess(req.ID, map[string]any{
+		"viewportKey":  entry.ViewportKey,
+		"viewportType": entry.ViewportType,
+		"payload":      entry.Payload,
+	})
 }
 
 func (c *Controller) writeResponse(w http.ResponseWriter, r *http.Request, response protocol.RPCResponse, start time.Time, method string) {

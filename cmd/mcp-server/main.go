@@ -37,14 +37,10 @@ func main() {
 		std.Fatalf("failed to initialize viewport registry: %v", err)
 	}
 	defer viewportRegistry.Close()
-	controller := transport.NewController(registry, obsLogger, cfg.HTTPMaxBodyBytes)
-	viewportController := transport.NewViewportController(viewportRegistry)
-	viewportListController := transport.NewViewportListController(viewportRegistry)
+	controller := transport.NewController(registry, viewportRegistry, obsLogger, cfg.HTTPMaxBodyBytes)
 
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", controller)
-	mux.Handle("/api/ap/viewport", viewportController)
-	mux.Handle("/api/ap/viewports", viewportListController)
 
 	addr := fmt.Sprintf(":%d", cfg.ServerPort)
 	server := &http.Server{

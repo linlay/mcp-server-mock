@@ -112,13 +112,22 @@
 - `initialize`
 - `tools/list`
 - `tools/call`
+- `viewports/list`
+- `viewports/get`
 
 `tools/list` 顶层扩展字段：
 
 - `label`：工具的人类可读名称，可用于中文展示
 - `toolAction: true`：action 工具
-- `toolType` + `viewportKey`：frontend 工具
+- `toolType` + `viewportKey`：仅在 `tools/*.yml` 显式声明时返回，服务端不做隐式推导
 - 未声明扩展字段：backend 工具
+
+`viewports/*` 约定：
+
+- viewport 能力通过 MCP method 暴露，不提供独立 HTTP viewport 查询接口
+- `viewports/list` 返回 `viewportKey`、`viewportType` 和 `toolNames`
+- `viewports/get` 要求 `viewportKey`，返回 `viewportKey`、`viewportType` 和 `payload`
+- `viewports/get` 缺少或传入不存在的 `viewportKey` 时返回 `-32602`
 
 响应约定：
 

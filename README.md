@@ -2,7 +2,7 @@
 
 ## 项目简介
 
-`mcp-server-mock` 是一个用于联调和回归测试的 Mock MCP Server，使用 Go `net/http` 提供单入口 `POST /mcp`，支持 `initialize`、`tools/list`、`tools/call` 和可选 SSE 输出。
+`mcp-server-mock` 是一个用于联调和回归测试的 Mock MCP Server，使用 Go `net/http` 提供单入口 `POST /mcp`，支持 `initialize`、`tools/list`、`tools/call`、`viewports/list`、`viewports/get` 和可选 SSE 输出。
 
 项目目标：
 
@@ -133,7 +133,7 @@ docker run --rm -p 8080:8080 --env-file .env mcp-server-mock
 
 健康验证：
 
-- 直接向 `/mcp` 发送 `initialize` 或 `tools/list` 请求，确认返回 `200` 和 JSON-RPC 结果
+- 直接向 `/mcp` 发送 `initialize`、`tools/list` 或 `viewports/list` 请求，确认返回 `200` 和 JSON-RPC 结果
 
 示例请求：
 
@@ -156,15 +156,36 @@ curl -sS -X POST "http://localhost:11969/mcp" \
 - 请求返回 `-32602`：检查 `tools/call.arguments` 是否满足对应 tool 的 `inputSchema`
 - Docker 启动后无法访问：确认 `HOST_PORT` 和 `SERVER_PORT` 映射是否正确
 - Docker 构建阶段 `go mod download` 超时：公共环境保持默认官方源；阿里云国内网络建议使用 `make docker-build-cn` 或 `make docker-up-cn`
+- Docker 启动时报 `network zenmind-network declared as external, but could not be found`：说明宿主机上还没有预创建外部网络；可先临时执行 `docker network create zenmind-network`，再重新运行 `make docker-up` 或 `make docker-up-cn`
+
+临时创建外部网络：
+
+```bash
+docker network create zenmind-network
+```
+
+如需确认网络已创建：
+
+```bash
+docker network ls | grep zenmind-network
+```
 
 `tools/list` 扩展字段：
 
 - `label` 表示工具的人类可读名称，适合直接给前端显示中文名
 - `toolAction: true` 表示该工具应被消费方视为 action 工具
-- `toolType + viewportKey` 成对出现时表示该工具应被消费方视为 frontend 工具
+- `toolType + viewportKey` 仅在对应字段显式写入 `tools/*.yml` 时返回，服务端不会从 viewport 文件或 `afterCallHint` 隐式推导
 - 未声明上述字段时，消费方可按 backend 工具处理
 - MCP 客户端应优先显示 `label`，回退到 `name`
 - 发起 `tools/call` 时始终使用 `name`，不要使用 `label`
+
+`viewports/list` 与 `viewports/get`：
+
+- viewport 能力通过 MCP method 暴露，不再提供额外的 HTTP viewport 查询接口
+- `viewports/list` 返回 `viewportKey`、`viewportType` 和 `toolNames`
+- `viewports/get` 入参为 `viewportKey`，返回 `viewportKey`、`viewportType` 和统一的 `payload` 字段
+- `payload` 在 `html` 类型下为字符串，在 `qlc` 类型下为对象
+- `viewports/get` 缺少或传入不存在的 `viewportKey` 时返回 `-32602`
 
 日志说明：
 
@@ -202,6 +223,21 @@ curl -sS -X POST "http://localhost:11969/mcp" \
     "params": {
       "name": "mock.weather.query",
       "arguments": {"city": "shanghai", "date": "2026-02-14"}
+    }
+  }'
+```
+
+`viewports/get`：
+
+```bash
+curl -sS -X POST "http://localhost:11969/mcp" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "4",
+    "method": "viewports/get",
+    "params": {
+      "viewportKey": "show_weather_card"
     }
   }'
 ```

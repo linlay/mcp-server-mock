@@ -25,6 +25,19 @@
 cp .env.example .env
 ```
 
+如在中国大陆或阿里云网络环境构建，默认建议保留 `.env` 中的 Go 模块代理配置：
+
+```bash
+make docker-up-cn
+```
+
+公共默认构建保持 Go 官方源：
+
+```bash
+GOPROXY=https://proxy.golang.org,direct
+GOSUMDB=sum.golang.org
+```
+
 本地运行：
 
 ```bash
@@ -41,6 +54,12 @@ Docker Compose 启动：
 
 ```bash
 make docker-up
+```
+
+如在阿里云或中国大陆网络环境构建：
+
+```bash
+make docker-up-cn
 ```
 
 启动后可通过以下地址访问：
@@ -136,6 +155,7 @@ curl -sS -X POST "http://localhost:11969/mcp" \
 - 启动失败并提示 `read viewports dir`：检查镜像/运行目录中是否包含 `viewports/`，或通过 `MCP_VIEWPORTS_DIR` 指向正确目录
 - 请求返回 `-32602`：检查 `tools/call.arguments` 是否满足对应 tool 的 `inputSchema`
 - Docker 启动后无法访问：确认 `HOST_PORT` 和 `SERVER_PORT` 映射是否正确
+- Docker 构建阶段 `go mod download` 超时：公共环境保持默认官方源；阿里云国内网络建议使用 `make docker-build-cn` 或 `make docker-up-cn`
 
 `tools/list` 扩展字段：
 

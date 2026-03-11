@@ -5,6 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+        GOSUMDB: ${GOSUMDB:-sum.golang.org}
     env_file:
       - .env
     ports:

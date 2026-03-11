@@ -154,7 +154,7 @@ type ExecuteResult struct {
 
 // Execute performs Find → Validate → Call in a single call.
 // The transport layer should map ErrKind to the appropriate RPC response.
-func (r *Registry) Execute(ctx context.Context, toolName string, args map[string]any) ExecuteResult {
+func (r *Registry) Execute(ctx context.Context, toolName string, args map[string]any, meta map[string]any) ExecuteResult {
 	item, ok := r.Find(toolName)
 	if !ok {
 		return ExecuteResult{
@@ -174,7 +174,7 @@ func (r *Registry) Execute(ctx context.Context, toolName string, args map[string
 			CanonicalName: item.Spec.Name,
 		}
 	}
-	structured, err := item.Handler.Call(ctx, args)
+	structured, err := item.Handler.Call(ctx, NewToolCall(args, meta))
 	if err != nil {
 		return ExecuteResult{
 			ToolResult:    ErrorResult(err.Error()),

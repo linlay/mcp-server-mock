@@ -16,7 +16,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o
 FROM alpine:3.21
 
 WORKDIR /app
-RUN adduser -D -u 10001 appuser
+RUN apk add --no-cache bash \
+    && adduser -D -u 10001 appuser
 
 COPY --from=builder /out/mcp-server /app/mcp-server
 COPY tools /app/tools

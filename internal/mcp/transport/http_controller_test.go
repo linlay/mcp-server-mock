@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"testing"
 
 	"mcp-server-mock/internal/config"
@@ -49,8 +50,8 @@ func TestToolsListShouldReturnSixCanonicalTools(t *testing.T) {
 
 	result := body["result"].(map[string]any)
 	items := result["tools"].([]any)
-	if len(items) != 6 {
-		t.Fatalf("expected 6 tools, got %d", len(items))
+	if len(items) != 7 {
+		t.Fatalf("expected 7 tools, got %d", len(items))
 	}
 
 	names := make([]string, 0, len(items))
@@ -73,6 +74,7 @@ func TestToolsListShouldReturnSixCanonicalTools(t *testing.T) {
 	}
 	sort.Strings(names)
 	expected := []string{
+		"bash",
 		"mock.logistics.status",
 		"mock.ops.runbook.generate",
 		"mock.sensitive-data.detect",
@@ -86,6 +88,7 @@ func TestToolsListShouldReturnSixCanonicalTools(t *testing.T) {
 		}
 	}
 	expectedLabels := map[string]string{
+		"bash":                          "执行 Bash 命令",
 		"mock.logistics.status":         "物流状态查询",
 		"mock.ops.runbook.generate":     "巡检 Runbook 生成",
 		"mock.sensitive-data.detect":    "敏感信息检测",
@@ -120,6 +123,53 @@ func TestToolsCallShouldReturnStructuredWeatherContent(t *testing.T) {
 		t.Fatal("temperatureC should be number")
 	}
 	assertEquals(t, structured["mockTag"], "幂等随机数据")
+}
+
+func TestToolsCallShouldSupportMetaForBash(t *testing.T) {
+	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
+
+	body, status, _ := postRPC(t, handler, rpc("bash-1", "tools/call", map[string]any{
+		"name":      "bash",
+		"arguments": map[string]any{"command": "pwd"},
+		"_meta": map[string]any{
+			"workDirectory": "./viewports",
+			"userId":        "rena-user-1",
+			"traceId":       "trace-001",
+		},
+	}), "")
+	if status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", status)
+	}
+
+	result := body["result"].(map[string]any)
+	assertEquals(t, result["isError"], false)
+	structured := result["structuredContent"].(map[string]any)
+	assertEquals(t, structured["exitCode"], float64(0))
+	assertEquals(t, structured["userId"], "rena-user-1")
+	if !strings.HasSuffix(structured["workingDirectory"].(string), string(filepath.Separator)+"viewports") {
+		t.Fatalf("expected working directory to end with /viewports, got %s", structured["workingDirectory"])
+	}
+}
+
+func TestToolsCallShouldRejectBashWorkDirectoryOutsideAllowedRoots(t *testing.T) {
+	handler := newMCPTestHandler(t, config.ObservabilityConfig{LogEnabled: true, LogMaxBodyLength: 2000})
+
+	body, status, _ := postRPC(t, handler, rpc("bash-2", "tools/call", map[string]any{
+		"name":      "bash",
+		"arguments": map[string]any{"command": "pwd"},
+		"_meta": map[string]any{
+			"workDirectory": "../..",
+		},
+	}), "")
+	if status != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", status)
+	}
+
+	result := body["result"].(map[string]any)
+	assertEquals(t, result["isError"], false)
+	structured := result["structuredContent"].(map[string]any)
+	assertEquals(t, structured["exitCode"], float64(-1))
+	assertContains(t, structured["stderr"].(string), "Working directory not allowed")
 }
 
 func TestToolsCallShouldRejectInvalidParamsBySchema(t *testing.T) {
@@ -299,7 +349,7 @@ func newMCPTestHandler(t *testing.T, obs config.ObservabilityConfig) http.Handle
 func newMCPTestHandlerWithViewportDir(t *testing.T, obs config.ObservabilityConfig, viewportsDir string) http.Handler {
 	t.Helper()
 	logger := log.New(io.Discard, "", 0)
-	registry, err := tools.NewRegistry(testToolsPattern(t), tools.BuiltinHandlers(), logger)
+	registry, err := tools.NewRegistry(testToolsPattern(t), tools.BuiltinHandlers(defaultBashConfig(t)), logger)
 	if err != nil {
 		t.Fatalf("failed to create registry: %v", err)
 	}
@@ -389,6 +439,19 @@ func testViewportsDir(t *testing.T) string {
 	}
 	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", ".."))
 	return filepath.Join(root, "viewports")
+}
+
+func defaultBashConfig(t *testing.T) config.BashConfig {
+	t.Helper()
+	root := filepath.Dir(filepath.Dir(testToolsPattern(t)))
+	return config.BashConfig{
+		WorkingDirectory: root,
+		AllowedRoots:     []string{root, filepath.Join(root, "tools"), filepath.Join(root, "viewports"), "/tmp"},
+		AllowedCommands:  []string{"pwd", "ls", "cat", "head", "tail", "echo", "env", "find"},
+		TimeoutMs:        10000,
+		MaxCommandChars:  4000,
+		MaxOutputChars:   8000,
+	}
 }
 
 func createTempViewportDir(t *testing.T, files map[string]string) string {

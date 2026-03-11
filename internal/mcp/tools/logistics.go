@@ -11,7 +11,8 @@ func (LogisticsHandler) Name() string {
 	return ToolLogistics
 }
 
-func (LogisticsHandler) Call(_ context.Context, args map[string]any) (map[string]any, error) {
+func (LogisticsHandler) Call(_ context.Context, call ToolCall) (map[string]any, error) {
+	args := call.Arguments
 	random := randomByArgs(args)
 	trackingNo := readText(args, "trackingNo")
 	carrier := readText(args, "carrier")

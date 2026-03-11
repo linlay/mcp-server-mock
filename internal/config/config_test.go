@@ -37,6 +37,15 @@ func TestLoadShouldUseEmbeddedDefaults(t *testing.T) {
 	if cfg.Observability.LogIncludeHeaders {
 		t.Fatal("expected log include headers false by default")
 	}
+	if cfg.Bash.WorkingDirectory != "." {
+		t.Fatalf("unexpected bash working directory: %s", cfg.Bash.WorkingDirectory)
+	}
+	if len(cfg.Bash.AllowedCommands) == 0 {
+		t.Fatal("expected bash allowed commands by default")
+	}
+	if cfg.Bash.TimeoutMs != 10000 {
+		t.Fatalf("unexpected bash timeout: %d", cfg.Bash.TimeoutMs)
+	}
 }
 
 func TestLoadShouldOverlayExternalYAMLThenEnv(t *testing.T) {
@@ -49,12 +58,24 @@ httpMaxBodyBytes: 2048
 observability:
   logEnabled: false
   logMaxBodyLength: 512
+bash:
+  workingDirectory: ./custom-bash
+  allowedRoots:
+    - ./custom-bash
+    - /tmp
+  allowedCommands:
+    - pwd
+    - env
+  timeoutMs: 5000
+  maxCommandChars: 1000
+  maxOutputChars: 2048
 `)
 
 	t.Setenv("CONFIG_PATH", configPath)
 	t.Setenv("SERVER_PORT", "12000")
 	t.Setenv("MCP_VIEWPORTS_DIR", "./env-viewports")
 	t.Setenv("MCP_OBSERVABILITY_LOG_INCLUDE_HEADERS", "true")
+	t.Setenv("MCP_BASH_ALLOWED_COMMANDS", "pwd,env,echo")
 
 	cfg, err := Load()
 	if err != nil {
@@ -84,6 +105,15 @@ observability:
 	}
 	if cfg.ToolsSpecLocationPattern != "./tools/*.yml" {
 		t.Fatalf("expected embedded default tools pattern, got %s", cfg.ToolsSpecLocationPattern)
+	}
+	if cfg.Bash.WorkingDirectory != "./custom-bash" {
+		t.Fatalf("expected yaml bash working directory, got %s", cfg.Bash.WorkingDirectory)
+	}
+	if got := strings.Join(cfg.Bash.AllowedCommands, ","); got != "pwd,env,echo" {
+		t.Fatalf("expected env bash allowed commands override, got %s", got)
+	}
+	if cfg.Bash.TimeoutMs != 5000 {
+		t.Fatalf("expected yaml bash timeout 5000, got %d", cfg.Bash.TimeoutMs)
 	}
 }
 

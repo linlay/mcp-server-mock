@@ -15,7 +15,7 @@ type MCPLogger interface {
 	LogMCPRequest(id any, method string, params any, acceptHeader string, stream bool, headers map[string]string)
 	LogMCPResponse(id any, method string, response any, duration time.Duration, contentType string)
 	LogMCPError(id any, method string, duration time.Duration, errorType, errorMessage string)
-	LogToolRequest(rawToolName, toolName string, args map[string]any)
+	LogToolRequest(rawToolName, toolName string, args map[string]any, meta map[string]any)
 	LogToolResponse(toolName string, result any, duration time.Duration)
 	LogToolError(rawToolName, toolName string, duration time.Duration, err string)
 }
@@ -95,15 +95,16 @@ func (l *Logger) LogMCPError(id any, method string, duration time.Duration, erro
 	)
 }
 
-func (l *Logger) LogToolRequest(rawToolName, toolName string, args map[string]any) {
+func (l *Logger) LogToolRequest(rawToolName, toolName string, args map[string]any, meta map[string]any) {
 	if !l.props.LogEnabled {
 		return
 	}
 	l.std.Printf(
-		"event=tool.call.request toolRawName=%s toolCanonicalName=%s argsSummary=%s",
+		"event=tool.call.request toolRawName=%s toolCanonicalName=%s argsSummary=%s metaSummary=%s",
 		emptyIfBlank(rawToolName),
 		emptyIfBlank(toolName),
 		l.sanitizer.SummarizeJSON(args),
+		l.sanitizer.SummarizeJSON(meta),
 	)
 }
 
@@ -219,8 +220,8 @@ type NopLogger struct{}
 var _ MCPLogger = NopLogger{}
 
 func (NopLogger) LogMCPRequest(any, string, any, string, bool, map[string]string) {}
-func (NopLogger) LogMCPResponse(any, string, any, time.Duration, string)           {}
-func (NopLogger) LogMCPError(any, string, time.Duration, string, string)           {}
-func (NopLogger) LogToolRequest(string, string, map[string]any)                    {}
-func (NopLogger) LogToolResponse(string, any, time.Duration)                       {}
-func (NopLogger) LogToolError(string, string, time.Duration, string)               {}
+func (NopLogger) LogMCPResponse(any, string, any, time.Duration, string)          {}
+func (NopLogger) LogMCPError(any, string, time.Duration, string, string)          {}
+func (NopLogger) LogToolRequest(string, string, map[string]any, map[string]any)   {}
+func (NopLogger) LogToolResponse(string, any, time.Duration)                      {}
+func (NopLogger) LogToolError(string, string, time.Duration, string)              {}

@@ -8,7 +8,8 @@ func (WeatherHandler) Name() string {
 	return ToolWeather
 }
 
-func (WeatherHandler) Call(_ context.Context, args map[string]any) (map[string]any, error) {
+func (WeatherHandler) Call(_ context.Context, call ToolCall) (map[string]any, error) {
+	args := call.Arguments
 	random := randomByArgs(args)
 	return map[string]any{
 		"city":         city(readText(args, "city")),

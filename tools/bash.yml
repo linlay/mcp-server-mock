@@ -1,0 +1,16 @@
+type: function
+name: bash
+label: 执行 Bash 命令
+description: |
+  执行最小受控 bash 命令，仅用于验证 MCP mock 链路。
+  仅支持严格单命令模式，不支持管道、重定向、here-doc、命令替换等高级 shell 语法。
+  支持通过 tools/call.params._meta 传入 workDirectory 与 userId。
+inputSchema:
+  type: object
+  properties:
+    command:
+      type: string
+      description: "要执行的命令字符串"
+  required:
+    - command
+  additionalProperties: false

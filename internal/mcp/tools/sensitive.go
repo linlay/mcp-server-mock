@@ -11,7 +11,8 @@ func (SensitiveHandler) Name() string {
 	return ToolSensitive
 }
 
-func (SensitiveHandler) Call(_ context.Context, args map[string]any) (map[string]any, error) {
+func (SensitiveHandler) Call(_ context.Context, call ToolCall) (map[string]any, error) {
+	args := call.Arguments
 	text := firstNonBlank(
 		readAny(args, "text"),
 		readAny(args, "content"),

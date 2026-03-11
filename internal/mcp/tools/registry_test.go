@@ -8,17 +8,18 @@ import (
 	"strings"
 	"testing"
 
+	"mcp-server-mock/internal/config"
 	"mcp-server-mock/internal/mcp/spec"
 )
 
 func TestRegistryShouldLoadAndListTools(t *testing.T) {
-	r, err := NewRegistry(projectToolsPattern(t), BuiltinHandlers(), log.New(os.Stdout, "", 0))
+	r, err := NewRegistry(projectToolsPattern(t), BuiltinHandlers(config.BashConfig{}), log.New(os.Stdout, "", 0))
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	listed := r.ListTools()
-	if len(listed) != 6 {
-		t.Fatalf("expected 6 tools, got %d", len(listed))
+	if len(listed) != 7 {
+		t.Fatalf("expected 7 tools, got %d", len(listed))
 	}
 	byName := map[string]map[string]any{}
 	for _, item := range listed {
@@ -255,7 +256,7 @@ func (s stubHandler) Name() string {
 	return s.name
 }
 
-func (s stubHandler) Call(_ context.Context, _ map[string]any) (map[string]any, error) {
+func (s stubHandler) Call(_ context.Context, _ ToolCall) (map[string]any, error) {
 	return map[string]any{"ok": true}, nil
 }
 

@@ -103,7 +103,7 @@ func newLoggingTestHandler(t *testing.T, obs config.ObservabilityConfig) (http.H
 	t.Helper()
 	buffer := &bytes.Buffer{}
 	logger := log.New(buffer, "", 0)
-	registry, err := tools.NewRegistry(testToolsPattern(t), tools.BuiltinHandlers(), logger)
+	registry, err := tools.NewRegistry(testToolsPattern(t), tools.BuiltinHandlers(defaultBashConfig(t)), logger)
 	if err != nil {
 		t.Fatalf("failed to create registry: %v", err)
 	}
@@ -165,6 +165,19 @@ func testViewportsDir(t *testing.T) string {
 	}
 	root := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
 	return filepath.Join(root, "viewports")
+}
+
+func defaultBashConfig(t *testing.T) config.BashConfig {
+	t.Helper()
+	root := filepath.Dir(filepath.Dir(testToolsPattern(t)))
+	return config.BashConfig{
+		WorkingDirectory: root,
+		AllowedRoots:     []string{root, filepath.Join(root, "tools"), filepath.Join(root, "viewports"), "/tmp"},
+		AllowedCommands:  []string{"pwd", "ls", "cat", "head", "tail", "echo", "env", "find"},
+		TimeoutMs:        10000,
+		MaxCommandChars:  4000,
+		MaxOutputChars:   8000,
+	}
 }
 
 func assertContains(t *testing.T, value, expected string) {

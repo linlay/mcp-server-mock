@@ -11,7 +11,8 @@ func (RunbookHandler) Name() string {
 	return ToolRunbook
 }
 
-func (RunbookHandler) Call(_ context.Context, args map[string]any) (map[string]any, error) {
+func (RunbookHandler) Call(_ context.Context, call ToolCall) (map[string]any, error) {
+	args := call.Arguments
 	message := fmt.Sprint(orValue(args, "message", orValue(args, "query", "")))
 	cityName := fmt.Sprint(orValue(args, "city", "Shanghai"))
 	random := randomByArgs(args)

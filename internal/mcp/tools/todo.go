@@ -12,7 +12,8 @@ func (TodoHandler) Name() string {
 	return ToolTodo
 }
 
-func (TodoHandler) Call(_ context.Context, args map[string]any) (map[string]any, error) {
+func (TodoHandler) Call(_ context.Context, call ToolCall) (map[string]any, error) {
+	args := call.Arguments
 	random := randomByArgs(args)
 	owner := readText(args, "owner")
 	if owner == "" {

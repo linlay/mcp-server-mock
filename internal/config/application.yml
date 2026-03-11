@@ -7,3 +7,22 @@ observability:
   logEnabled: true
   logMaxBodyLength: 2000
   logIncludeHeaders: false
+bash:
+  workingDirectory: .
+  allowedRoots:
+    - .
+    - ./tools
+    - ./viewports
+    - /tmp
+  allowedCommands:
+    - pwd
+    - ls
+    - cat
+    - head
+    - tail
+    - echo
+    - env
+    - find
+  timeoutMs: 10000
+  maxCommandChars: 4000
+  maxOutputChars: 8000

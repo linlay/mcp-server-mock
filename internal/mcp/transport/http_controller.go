@@ -128,9 +128,12 @@ func (c *Controller) dispatchToolsCall(r *http.Request, req protocol.RPCRequest,
 	if params.Arguments == nil {
 		params.Arguments = map[string]any{}
 	}
+	if params.Meta == nil {
+		params.Meta = map[string]any{}
+	}
 
-	result := c.registry.Execute(r.Context(), params.Name, params.Arguments)
-	c.logger.LogToolRequest(params.Name, result.CanonicalName, params.Arguments)
+	result := c.registry.Execute(r.Context(), params.Name, params.Arguments, params.Meta)
+	c.logger.LogToolRequest(params.Name, result.CanonicalName, params.Arguments, params.Meta)
 
 	switch result.ErrKind {
 	case tools.ExecuteUnknownTool:

@@ -21,6 +21,15 @@ type ObservabilityConfig struct {
 	LogIncludeHeaders bool `yaml:"logIncludeHeaders"`
 }
 
+type BashConfig struct {
+	WorkingDirectory string   `yaml:"workingDirectory"`
+	AllowedRoots     []string `yaml:"allowedRoots"`
+	AllowedCommands  []string `yaml:"allowedCommands"`
+	TimeoutMs        int      `yaml:"timeoutMs"`
+	MaxCommandChars  int      `yaml:"maxCommandChars"`
+	MaxOutputChars   int      `yaml:"maxOutputChars"`
+}
+
 // Config holds process-level server configuration.
 type Config struct {
 	ServerPort                int                 `yaml:"serverPort"`
@@ -29,6 +38,7 @@ type Config struct {
 	ViewportRefreshIntervalMs int                 `yaml:"viewportRefreshIntervalMs"`
 	HTTPMaxBodyBytes          int64               `yaml:"httpMaxBodyBytes"`
 	Observability             ObservabilityConfig `yaml:"observability"`
+	Bash                      BashConfig          `yaml:"bash"`
 }
 
 // Load returns configuration from code defaults, embedded YAML, optional external YAML, and env.
@@ -43,6 +53,14 @@ func Load() (Config, error) {
 			LogEnabled:        true,
 			LogMaxBodyLength:  2000,
 			LogIncludeHeaders: false,
+		},
+		Bash: BashConfig{
+			WorkingDirectory: ".",
+			AllowedRoots:     []string{".", "./tools", "./viewports", "/tmp"},
+			AllowedCommands:  []string{"pwd", "ls", "cat", "head", "tail", "echo", "env", "find"},
+			TimeoutMs:        10000,
+			MaxCommandChars:  4000,
+			MaxOutputChars:   8000,
 		},
 	}
 
@@ -83,6 +101,12 @@ func applyEnvOverrides(cfg *Config) {
 	cfg.Observability.LogEnabled = readBoolEnv("MCP_OBSERVABILITY_LOG_ENABLED", cfg.Observability.LogEnabled)
 	cfg.Observability.LogMaxBodyLength = readIntEnv("MCP_OBSERVABILITY_LOG_MAX_BODY_LENGTH", cfg.Observability.LogMaxBodyLength)
 	cfg.Observability.LogIncludeHeaders = readBoolEnv("MCP_OBSERVABILITY_LOG_INCLUDE_HEADERS", cfg.Observability.LogIncludeHeaders)
+	cfg.Bash.WorkingDirectory = readStringEnv("MCP_BASH_WORKING_DIRECTORY", cfg.Bash.WorkingDirectory)
+	cfg.Bash.AllowedRoots = readListEnv("MCP_BASH_ALLOWED_ROOTS", cfg.Bash.AllowedRoots)
+	cfg.Bash.AllowedCommands = readListEnv("MCP_BASH_ALLOWED_COMMANDS", cfg.Bash.AllowedCommands)
+	cfg.Bash.TimeoutMs = readIntEnv("MCP_BASH_TIMEOUT_MS", cfg.Bash.TimeoutMs)
+	cfg.Bash.MaxCommandChars = readIntEnv("MCP_BASH_MAX_COMMAND_CHARS", cfg.Bash.MaxCommandChars)
+	cfg.Bash.MaxOutputChars = readIntEnv("MCP_BASH_MAX_OUTPUT_CHARS", cfg.Bash.MaxOutputChars)
 }
 
 func readStringEnv(key, fallback string) string {
@@ -127,4 +151,23 @@ func readInt64Env(key string, fallback int64) int64 {
 		return fallback
 	}
 	return value
+}
+
+func readListEnv(key string, fallback []string) []string {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback
+	}
+	values := make([]string, 0)
+	for _, part := range strings.Split(raw, ",") {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		values = append(values, trimmed)
+	}
+	if len(values) == 0 {
+		return fallback
+	}
+	return values
 }

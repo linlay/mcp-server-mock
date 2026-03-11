@@ -23,7 +23,7 @@ func main() {
 
 	sanitizer := observability.NewLogSanitizer(cfg.Observability.LogMaxBodyLength)
 	obsLogger := observability.NewLogger(std, cfg.Observability, sanitizer)
-	registry, err := tools.NewRegistry(cfg.ToolsSpecLocationPattern, tools.BuiltinHandlers(), std)
+	registry, err := tools.NewRegistry(cfg.ToolsSpecLocationPattern, tools.BuiltinHandlers(cfg.Bash), std)
 	if err != nil {
 		std.Fatalf("failed to initialize tool registry: %v", err)
 	}

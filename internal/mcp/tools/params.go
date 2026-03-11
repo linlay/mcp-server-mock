@@ -16,6 +16,10 @@ func readText(args map[string]any, key string) string {
 	return strings.TrimSpace(fmt.Sprint(value))
 }
 
+func readString(args map[string]any, key string) string {
+	return readText(args, key)
+}
+
 func readAny(args map[string]any, key string) string {
 	if args == nil {
 		return ""

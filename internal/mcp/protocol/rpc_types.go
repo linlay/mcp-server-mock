@@ -31,6 +31,7 @@ type RPCResponse struct {
 type ToolsCallParams struct {
 	Name      string         `json:"name"`
 	Arguments map[string]any `json:"arguments"`
+	Meta      map[string]any `json:"_meta,omitempty"`
 }
 
 type ViewportGetParams struct {

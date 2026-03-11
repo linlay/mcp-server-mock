@@ -12,7 +12,8 @@ func (TransportHandler) Name() string {
 	return ToolTransport
 }
 
-func (TransportHandler) Call(_ context.Context, args map[string]any) (map[string]any, error) {
+func (TransportHandler) Call(_ context.Context, call ToolCall) (map[string]any, error) {
+	args := call.Arguments
 	random := randomByArgs(args)
 	rawType := readText(args, "type")
 	travelType := "航班"
